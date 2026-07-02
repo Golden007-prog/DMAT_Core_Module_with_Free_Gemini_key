@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sessionStore } from '../../state/sessionStore';
+import { sessionStore, useSession } from '../../state/sessionStore';
 import { fullCoreStore } from '../../state/fullCoreStore';
 import { useHistory } from '../../state/historyStore';
 import { useSettings } from '../../state/settingsStore';
 import type { Difficulty, SubtestType } from '../../engine/types';
 import { formatPercent } from '../format';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const SUBTESTS: Array<{
   key: SubtestType;
@@ -41,6 +42,10 @@ export default function Home() {
   const [difficulty, setDifficulty] = useState<Difficulty | 'mixed'>('medium');
   const [count, setCount] = useState<5 | 10 | 20>(10);
   const [mode, setMode] = useState<'practice' | 'exam'>('practice');
+  const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
+  const hasRunningAttempt = useSession(
+    (s) => s.session?.state === 'running' && Object.keys(s.session.answers).length > 0,
+  );
 
   useEffect(() => {
     void history.refresh();
@@ -53,23 +58,32 @@ export default function Home() {
     return { attempts: sessions.length, last: sessions[0].score!.accuracy };
   };
 
-  const generate = () => {
-    fullCoreStore.getState().reset();
-    void sessionStore.getState().startNewSession({
-      mode,
-      subtest,
-      difficulty,
-      questionCount: count,
-      seed: 0, // store draws a fresh seed
-    });
-    navigate('/run');
+  /** R1 restart semantics: discarding a live attempt needs a confirm. */
+  const guarded = (action: () => void) => {
+    if (hasRunningAttempt) setPendingAction(() => action);
+    else action();
   };
 
-  const startFullCore = () => {
-    fullCoreStore.getState().begin();
-    void sessionStore.getState().startNewSession(fullCoreStore.getState().stageConfig());
-    navigate('/run');
-  };
+  const generate = () =>
+    guarded(() => {
+      fullCoreStore.getState().reset();
+      void sessionStore.getState().startNewSession({
+        mode,
+        subtest,
+        difficulty,
+        questionCount: count,
+        seed: 0, // store draws a fresh seed
+        equationAskMode: settings.equationAskMode,
+      });
+      navigate('/run');
+    });
+
+  const startFullCore = () =>
+    guarded(() => {
+      fullCoreStore.getState().begin();
+      void sessionStore.getState().startNewSession(fullCoreStore.getState().stageConfig());
+      navigate('/run');
+    });
 
   return (
     <section>
@@ -227,6 +241,19 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title="Discard current attempt?"
+        body="You have a test in progress with answers. Generating a fresh set discards it entirely — a brand-new set with a new random seed."
+        confirmLabel="Discard and generate"
+        danger
+        onConfirm={() => {
+          pendingAction?.();
+          setPendingAction(null);
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </section>
   );
 }

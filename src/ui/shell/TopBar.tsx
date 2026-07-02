@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useThemeStore } from '../../state/themeStore';
+import { useSession } from '../../state/sessionStore';
 
 const navItems = [
   { to: '/', label: 'Practice' },
@@ -12,8 +13,11 @@ const navItems = [
 export default function TopBar() {
   const { theme, toggle } = useThemeStore();
   const location = useLocation();
-  // Distraction-free runner: hide nav while a test is being taken (exam & practice).
-  const inRunner = location.pathname === '/run';
+  const examRunning = useSession(
+    (s) => s.session?.mode === 'exam' && s.session.state === 'running',
+  );
+  // Distraction-free exam: nav is hidden while an exam is being taken (§8).
+  const inRunner = location.pathname === '/run' && examRunning;
 
   return (
     <header className="border-b border-zinc-200 bg-surface dark:border-zinc-800 dark:bg-surface-dark-alt">

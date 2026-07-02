@@ -8,6 +8,7 @@ import { createSession, transition, type SessionConfig } from './sessionMachine'
 import { isAnswerCorrect } from './scoring';
 import { createTimer, realClock, type Timer } from './timer';
 import { getStorage, type StorageAPI } from '../storage/db';
+import { fetchAiEquationSet } from '../ai/equationBatch';
 
 export interface SessionDeps {
   timer: Timer;
@@ -18,6 +19,11 @@ export interface SessionDeps {
   /** yields between question generations: UI stays responsive, aborts land */
   yieldBetween: () => Promise<void>;
   generateQuestionAt: (cfg: GenerateSetConfig, index: number) => Question;
+  /** G1: optional AI equation batch; null → deterministic path (R7) */
+  aiEquationSet: (
+    cfg: GenerateSetConfig,
+    signal: AbortSignal,
+  ) => Promise<{ questions: Question[]; source: 'gemini+validated' | 'mixed' } | null>;
 }
 
 export interface SessionStore {
@@ -57,6 +63,7 @@ const defaultDeps: SessionDeps = {
   newSeed: () => Math.floor(Math.random() * 2 ** 31),
   yieldBetween: () => new Promise((r) => setTimeout(r, 0)),
   generateQuestionAt: engineGenerateQuestionAt,
+  aiEquationSet: fetchAiEquationSet,
 };
 
 export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreApi<SessionStore> {
@@ -148,7 +155,27 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           difficulty: cfg.difficulty,
           count: cfg.questionCount,
           seed: cfg.seed,
+          equationAskMode: cfg.equationAskMode,
         };
+
+        // G1: AI-generated equation sets (optional enhancement, never a gate).
+        // Runs while the timer is disarmed; stale/aborted results are discarded.
+        if (cfg.subtest === 'equations') {
+          const ai = await deps.aiEquationSet(genCfg, abort.signal).catch(() => null);
+          if (abort.signal.aborted || get().session?.id !== sid) return;
+          if (ai && ai.questions.length === cfg.questionCount) {
+            set({
+              session: transition(get().session!, {
+                type: 'GENERATED',
+                questions: ai.questions,
+                source: ai.source,
+              }),
+              progress: null,
+            });
+            return;
+          }
+        }
+
         const questions: Question[] = [];
         for (let i = 0; i < cfg.questionCount; i++) {
           await deps.yieldBetween();

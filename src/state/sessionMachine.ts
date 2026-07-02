@@ -8,6 +8,7 @@ export interface SessionConfig {
   questionCount: number;
   seed: number;
   durationMs?: number;
+  equationAskMode?: 'choice' | 'entry';
 }
 
 /** Official pacing: 75 s per task (20 tasks in 25:00). */
@@ -15,7 +16,11 @@ export const MS_PER_TASK = 75_000;
 
 export type SessionEvent =
   | { type: 'GENERATE' }
-  | { type: 'GENERATED'; questions: Question[] }
+  | {
+      type: 'GENERATED';
+      questions: Question[];
+      source?: 'deterministic' | 'gemini+validated' | 'mixed';
+    }
   | { type: 'CANCEL_GENERATION' }
   | { type: 'START'; startedAt: number; endsAt: number }
   | { type: 'ANSWER'; questionId: string; value: unknown; timeMs: number }
@@ -65,7 +70,12 @@ export function transition(session: Session, event: SessionEvent): Session {
           `question count mismatch: expected ${session.questionCount}, got ${event.questions.length}`,
         );
       }
-      return { ...session, questions: event.questions, state: 'ready' };
+      return {
+        ...session,
+        questions: event.questions,
+        state: 'ready',
+        generatorSource: event.source ?? 'deterministic',
+      };
     }
 
     case 'CANCEL_GENERATION':
