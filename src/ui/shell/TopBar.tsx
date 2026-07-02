@@ -22,7 +22,11 @@ export default function TopBar() {
   return (
     <header className="border-b border-zinc-200 bg-surface dark:border-zinc-800 dark:bg-surface-dark-alt">
       <div className="mx-auto flex h-14 w-full max-w-[1100px] items-center gap-4 px-4 sm:px-6">
-        <NavLink to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <NavLink
+          to="/"
+          className="flex items-center gap-2 font-semibold tracking-tight"
+          aria-label="CoreForge home"
+        >
           <svg viewBox="0 0 32 32" className="h-7 w-7" aria-hidden="true">
             <rect width="32" height="32" rx="7" fill="#A3195B" />
             <rect x="6" y="6" width="8" height="8" rx="1.5" fill="#fff" />
@@ -30,22 +34,22 @@ export default function TopBar() {
             <path d="M10 18 L14 26 L6 26 Z" fill="#fff" />
             <rect x="18" y="18" width="8" height="8" rx="1.5" fill="none" stroke="#fff" strokeWidth="2" />
           </svg>
-          <span>
+          <span className="hidden sm:inline">
             CoreForge
-            <span className="ml-2 hidden text-sm font-normal text-zinc-500 sm:inline dark:text-zinc-400">
+            <span className="ml-2 hidden text-sm font-normal text-zinc-500 md:inline dark:text-zinc-400">
               dMAT Core Practice
             </span>
           </span>
         </NavLink>
 
         {!inRunner && (
-          <nav aria-label="Main" className="ml-auto flex items-center gap-1 overflow-x-auto">
+          <nav aria-label="Main" className="ml-auto flex items-center gap-0.5 overflow-x-auto sm:gap-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  `rounded-lg px-1 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
                     isActive
                       ? 'bg-accent-tint text-accent dark:bg-accent/20 dark:text-accent-dark'
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
