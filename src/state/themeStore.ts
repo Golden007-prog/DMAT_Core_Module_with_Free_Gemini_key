@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type Theme = 'light' | 'dark';
 
@@ -20,7 +20,7 @@ export const useThemeStore = create<ThemeState>()(
       toggle: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       setTheme: (theme) => set({ theme }),
     }),
-    { name: 'coreforge-theme' },
+    { name: 'coreforge-theme', storage: createJSONStorage(() => window.localStorage) },
   ),
 );
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 /** Verified against ai.google.dev at build time (July 2026). Users can
  *  override in Settings; startup model discovery marks what actually exists
@@ -36,6 +36,8 @@ export const useSettings = create<SettingsState>()(
       aiEquationsEnabled: false,
       set: (key, value) => set({ [key]: value } as Partial<SettingsState>),
     }),
-    { name: 'coreforge-settings' },
+    // explicit window.localStorage: Node's experimental localStorage global
+    // must never shadow the browser one (also breaks vitest+jsdom otherwise)
+    { name: 'coreforge-settings', storage: createJSONStorage(() => window.localStorage) },
   ),
 );
