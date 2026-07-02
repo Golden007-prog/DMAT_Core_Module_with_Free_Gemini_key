@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { sessionStore, useSession } from '../../state/sessionStore';
+import { fullCoreStore, useFullCore } from '../../state/fullCoreStore';
 import { getStorage } from '../../storage/db';
 import type { Difficulty, Session } from '../../engine/types';
 import { formatMs, formatPercent } from '../format';
@@ -38,6 +39,9 @@ export default function Results() {
   const navigate = useNavigate();
   const active = useSession((s) => s.session);
   const [session, setSession] = useState<Session | null>(null);
+  const coreActive = useFullCore((s) => s.active);
+  const coreAtBreak = useFullCore((s) => s.atBreak);
+  const coreComplete = useFullCore((s) => s.complete);
 
   useEffect(() => {
     if (active && active.id === sessionId) {
@@ -48,6 +52,14 @@ export default function Results() {
         .then((s) => setSession(s ?? null));
     }
   }, [active, sessionId]);
+
+  // full core run: register this stage's finish exactly once
+  useEffect(() => {
+    const core = fullCoreStore.getState();
+    if (core.active && sessionId && active?.id === sessionId && !core.sessionIds.includes(sessionId)) {
+      core.stageFinished(sessionId);
+    }
+  }, [sessionId, active]);
 
   if (!session?.score) {
     return (
@@ -143,6 +155,34 @@ export default function Results() {
           accuracy.
         </p>
       </div>
+
+      {coreActive && coreAtBreak && (
+        <div className="mt-4 rounded-card border-2 border-accent/40 bg-accent-tint/50 p-5 dark:border-accent-dark/40 dark:bg-accent/10">
+          <p className="font-semibold">Full Core Module run in progress.</p>
+          <button
+            type="button"
+            onClick={() => navigate('/break')}
+            className="mt-3 rounded-lg bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-hover"
+          >
+            Take the 60 s break → next subtest
+          </button>
+        </div>
+      )}
+      {coreActive && coreComplete && (
+        <div className="mt-4 rounded-card border border-success/40 bg-success/5 p-5">
+          <p className="font-semibold text-success">Full Core Module run complete — all three subtests done.</p>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+            Find each subtest's result in your History for review.
+          </p>
+          <button
+            type="button"
+            onClick={() => fullCoreStore.getState().reset()}
+            className="mt-3 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700"
+          >
+            Done
+          </button>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Link

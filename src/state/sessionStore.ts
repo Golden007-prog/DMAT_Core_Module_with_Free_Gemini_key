@@ -31,6 +31,11 @@ export interface SessionStore {
   storagePersistent: boolean;
 
   startNewSession(cfg: SessionConfig, opts?: { keepSeed?: boolean }): Promise<void>;
+  /** "Retry my mistakes": a ready session from pre-built validated questions. */
+  startSessionFromQuestions(
+    questions: Question[],
+    meta: Pick<SessionConfig, 'mode' | 'subtest' | 'difficulty'>,
+  ): Promise<void>;
   cancelGeneration(): void;
   start(): void;
   goTo(index: number): void;
@@ -114,6 +119,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
       storagePersistent: true,
 
       async startNewSession(cfgIn, opts = {}) {
+        if (get().readOnly) return; // second tab is read-only
         // R1: abort any in-flight generation, destroy the old session,
         // new session object with a NEW RNG seed, full fresh set, atomically.
         currentAbort?.abort();
@@ -159,6 +165,27 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
         });
       },
 
+      async startSessionFromQuestions(questions, meta) {
+        currentAbort?.abort();
+        deps.timer.disarm();
+        const cfg: SessionConfig = {
+          ...meta,
+          questionCount: questions.length,
+          seed: deps.newSeed(),
+        };
+        let session = createSession(cfg);
+        session = transition(session, { type: 'GENERATE' });
+        session = transition(session, { type: 'GENERATED', questions });
+        set({
+          session,
+          lastConfig: cfg,
+          progress: null,
+          remainingMs: session.durationMs,
+          currentIndex: 0,
+          questionShownAt: null,
+        });
+      },
+
       cancelGeneration() {
         currentAbort?.abort();
         const s = get().session;
@@ -168,6 +195,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
       },
 
       start() {
+        if (get().readOnly) return;
         const s = get().session;
         if (!s) throw new Error('no session to start');
         const startedAt = deps.now();
@@ -187,6 +215,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
       },
 
       answer(questionId, value) {
+        if (get().readOnly) return;
         const s = get().session;
         if (!s || s.state !== 'running') return;
         const shownAt = get().questionShownAt ?? deps.now();

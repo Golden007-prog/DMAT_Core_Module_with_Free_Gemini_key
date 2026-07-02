@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionStore } from '../../state/sessionStore';
+import { fullCoreStore } from '../../state/fullCoreStore';
 import { useHistory } from '../../state/historyStore';
 import { useSettings } from '../../state/settingsStore';
 import type { Difficulty, SubtestType } from '../../engine/types';
@@ -53,6 +54,7 @@ export default function Home() {
   };
 
   const generate = () => {
+    fullCoreStore.getState().reset();
     void sessionStore.getState().startNewSession({
       mode,
       subtest,
@@ -60,6 +62,12 @@ export default function Home() {
       questionCount: count,
       seed: 0, // store draws a fresh seed
     });
+    navigate('/run');
+  };
+
+  const startFullCore = () => {
+    fullCoreStore.getState().begin();
+    void sessionStore.getState().startNewSession(fullCoreStore.getState().stageConfig());
     navigate('/run');
   };
 
@@ -199,6 +207,25 @@ export default function Home() {
         >
           Generate set
         </button>
+      </div>
+
+      <div className="mt-6 rounded-card border-2 border-accent/30 bg-gradient-to-r from-accent-tint/60 to-surface p-6 shadow-card dark:border-accent-dark/30 dark:from-accent/10 dark:to-surface-dark-alt">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">Full Core Module run</h2>
+            <p className="mt-1 max-w-xl text-sm text-zinc-600 dark:text-zinc-300">
+              The complete exam simulation: Figure Sequences, Mathematical Equations, and Latin Squares —
+              20 tasks and 25:00 each, with a 60-second break between subtests. About 80 minutes total.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={startFullCore}
+            className="rounded-xl bg-accent px-6 py-3 font-semibold text-white transition-colors hover:bg-accent-hover"
+          >
+            Start full run
+          </button>
+        </div>
       </div>
     </section>
   );
