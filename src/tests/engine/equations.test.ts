@@ -10,7 +10,7 @@ const VAR_COUNT: Record<Difficulty, number> = { easy: 2, medium: 3, hard: 4 };
 describe('equations solver (pruned brute force over [1..20]^n)', () => {
   it('finds the unique solution of a determinate system', () => {
     // 7 + A = 14 ; B − 3 = A  →  A=7, B=10
-    const eqs = [
+    const eqs: import('../../engine/equations/solver').LinearEq[] = [
       { coeffs: { A: 1 }, constant: 7 },
       { coeffs: { B: 1, A: -1 }, constant: 3 },
     ];
