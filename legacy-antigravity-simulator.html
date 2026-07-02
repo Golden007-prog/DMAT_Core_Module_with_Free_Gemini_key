@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity dMAT Simulator</title>
+    <style>
+        :root {
+            --plum: #8a1c5c;
+            --plum-hover: #a52470;
+            --slate: #2c3e50;
+            --slate-hover: #3b536b;
+            --bg: #f0f2f5;
+            --surface: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #5f6368;
+            --border: #e0e0e0;
+            --success: #2e7d32;
+            --error: #c62828;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Control Hub */
+        header {
+            background-color: var(--surface);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand h1 {
+            color: var(--slate);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            fill: var(--plum);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        select, input, button {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        select, input {
+            background-color: var(--bg);
+        }
+
+        select:focus, input:focus {
+            border-color: var(--plum);
+            box-shadow: 0 0 0 2px rgba(138, 28, 92, 0.2);
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--plum);
+            color: white;
+            border-color: var(--plum);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--plum-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--slate);
+            color: white;
+            border-color: var(--slate);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--slate-hover);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--slate);
+            border-color: var(--border);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--bg);
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--slate);
+            font-weight: 500;
+        }
+
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--plum); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* API Key hidden initially */
+        #apiKeyContainer {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        #apiKeyContainer.active {
+            display: flex;
+        }
+
+        /* Main Layout */
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 2rem;
+        }
+
+        /* Left Column */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .metric-card h3 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--slate);
+        }
+
+        /* Arena */
+        .arena-container {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex: 1;
+            position: relative;
+        }
+
+        .arena-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+        
+        .timer {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .question-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            text-align: center;
+            font-size: 1.5rem;
+            overflow: auto;
+        }
+        
+        .question-text {
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        /* Right Column */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Choices Dock */
+        .choices-dock {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .choices-dock h3 {
+            font-size: 1.1rem;
+            color: var(--slate);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .choice-btn {
+            background: var(--bg);
+            border: 2px solid var(--border);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .choice-btn .choice-letter {
+            background: var(--slate);
+            color: white;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .choice-btn:hover {
+            border-color: var(--plum);
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(138, 28, 92, 0.1);
+        }
+
+        .choice-btn.correct {
+            border-color: var(--success);
+            background: rgba(46, 125, 50, 0.1);
+        }
+        
+        .choice-btn.correct .choice-letter {
+            background: var(--success);
+        }
+
+        .choice-btn.incorrect {
+            border-color: var(--error);
+            background: rgba(198, 40, 40, 0.1);
+        }
+        
+        .choice-btn.incorrect .choice-letter {
+            background: var(--error);
+        }
+        
+        .choice-btn:disabled {
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        /* Analytics Drawer */
+        .analytics-drawer {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+        }
+        
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+        
+        .drawer-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+        }
+        
+        .drawer-content.hidden {
+            display: none;
+        }
+        
+        .timeline-graph {
+            height: 150px;
+            background: var(--bg);
+            border-radius: 8px;
+            position: relative;
+            padding: 10px;
+        }
+        
+        .mistake-ledger {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        
+        .mistake-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        
+        .mistake-item:last-child {
+            border-bottom: none;
+        }
+
+        /* SVG Generators */
+        .svg-grid {
+            display: grid;
+            gap: 10px;
+            margin: 0 auto;
+        }
+        
+        .svg-cell {
+            border: 2px solid var(--slate);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .math-eq {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.8rem;
+            margin: 10px 0;
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        
+        .latin-square {
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+        
+        .latin-square td {
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--slate);
+            text-align: center;
+            vertical-align: middle;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .latin-square .missing {
+            background-color: var(--bg);
+            color: transparent;
+        }
+
+        /* Utility */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            border: 4px solid var(--bg);
+            border-top: 4px solid var(--plum);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Overlay */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            z-index: 10;
+            display: none;
+        }
+        
+        .overlay.active {
+            display: flex;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+            .right-panel {
+                order: 2;
+            }
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <svg class="brand-icon" viewBox="0 0 24 24">
+                <path d="M12 2L2 22h20L12 2zm0 3.5l7 14.5H5l7-14.5z"/>
+                <circle cx="12" cy="16" r="2"/>
+            </svg>
+            <h1>Antigravity</h1>
+        </div>
+        <div class="controls">
+            <select id="moduleSelect">
+                <option value="figure">Figure Sequences</option>
+                <option value="math">Mathematical Equations</option>
+                <option value="latin">Latin Squares</option>
+            </select>
+            
+            <select id="diffSelect">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+            
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="aiToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Gemini API</span>
+            </div>
+            
+            <div id="apiKeyContainer">
+                <input type="password" id="apiKey" placeholder="Gemini API Key" style="width: 200px;">
+            </div>
+            
+            <button id="nextBtn" class="btn-primary">Next Question</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="left-panel">
+            <div class="dashboard">
+                <div class="metric-card">
+                    <h3>Solved</h3>
+                    <div class="value" id="valSolved">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Current Streak</h3>
+                    <div class="value" id="valStreak">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Best Streak</h3>
+                    <div class="value" id="valBestStreak">0</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Accuracy</h3>
+                    <div class="value" id="valAcc">0%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Avg Time (s)</h3>
+                    <div class="value" id="valTime">0.0</div>
+                </div>
+            </div>
+
+            <div class="arena-container">
+                <div id="loadingOverlay" class="overlay">
+                    <div class="loader"></div>
+                </div>
+                <div class="arena-header">
+                    <h2 id="arenaTitle">Question</h2>
+                    <div class="timer" id="timerDisplay">00:00</div>
+                </div>
+                <div class="question-content" id="questionContent">
+                    <!-- Question renders here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="choices-dock">
+                <h3>Select Answer</h3>
+                <div id="choicesContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Choices render here -->
+                </div>
+            </div>
+
+            <div class="analytics-drawer">
+                <div class="drawer-header" id="drawerToggle">
+                    <h3>Analytics</h3>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+                <div class="drawer-content" id="drawerContent">
+                    <div class="timeline-graph" id="timelineGraph">
+                        <!-- SVG Timeline -->
+                        <svg width="100%" height="100%" preserveAspectRatio="none" id="graphSvg"></svg>
+                    </div>
+                    <div class="mistake-ledger">
+                        <h4>Mistake Ledger</h4>
+                        <div id="ledgerContent">
+                            <div class="mistake-item">No mistakes yet. Great job!</div>
+                        </div>
+                    </div>
+                    <button class="btn-outline" id="clearBtn" style="margin-top: auto;">Clear History</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * State Management & LocalStorage
+         */
+        const STORAGE_KEY = 'antigravity_analytics';
+        let stats = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+            solved: 0,
+            streak: 0,
+            bestStreak: 0,
+            totalAttempts: 0,
+            totalCorrect: 0,
+            totalTime: 0, // in milliseconds
+            history: [], // { result: 1 or 0, timeMs: 1200, timestamp: 12345 }
+            mistakes: [] // { module, diff, qText, chosen, correct, timestamp }
+        };
+
+        let currentQuestion = null;
+        let timerInterval = null;
+        let startTime = null;
+
+        // UI Elements
+        const ui = {
+            aiToggle: document.getElementById('aiToggle'),
+            apiKeyContainer: document.getElementById('apiKeyContainer'),
+            apiKey: document.getElementById('apiKey'),
+            moduleSelect: document.getElementById('moduleSelect'),
+            diffSelect: document.getElementById('diffSelect'),
+            nextBtn: document.getElementById('nextBtn'),
+            
+            valSolved: document.getElementById('valSolved'),
+            valStreak: document.getElementById('valStreak'),
+            valBestStreak: document.getElementById('valBestStreak'),
+            valAcc: document.getElementById('valAcc'),
+            valTime: document.getElementById('valTime'),
+            
+            timerDisplay: document.getElementById('timerDisplay'),
+            questionContent: document.getElementById('questionContent'),
+            choicesContainer: document.getElementById('choicesContainer'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            arenaTitle: document.getElementById('arenaTitle'),
+            
+            drawerToggle: document.getElementById('drawerToggle'),
+            drawerContent: document.getElementById('drawerContent'),
+            clearBtn: document.getElementById('clearBtn'),
+            ledgerContent: document.getElementById('ledgerContent'),
+            graphSvg: document.getElementById('graphSvg')
+        };
+
+        // Initialize UI
+        function updateDashboard() {
+            ui.valSolved.innerText = stats.solved;
+            ui.valStreak.innerText = stats.streak;
+            ui.valBestStreak.innerText = stats.bestStreak;
+            
+            const acc = stats.totalAttempts > 0 ? Math.round((stats.totalCorrect / stats.totalAttempts) * 100) : 0;
+            ui.valAcc.innerText = acc + '%';
+            
+            const avgTime = stats.totalAttempts > 0 ? (stats.totalTime / stats.totalAttempts / 1000).toFixed(1) : '0.0';
+            ui.valTime.innerText = avgTime;
+            
+            renderLedger();
+            renderGraph();
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+        }
+
+        ui.aiToggle.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                ui.apiKeyContainer.classList.add('active');
+            } else {
+                ui.apiKeyContainer.classList.remove('active');
+            }
+        });
+
+        ui.drawerToggle.addEventListener('click', () => {
+            ui.drawerContent.classList.toggle('hidden');
+            const svg = ui.drawerToggle.querySelector('svg');
+            if(ui.drawerContent.classList.contains('hidden')) {
+                svg.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+            } else {
+                svg.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+            }
+        });
+
+        ui.clearBtn.addEventListener('click', () => {
+            if(confirm('Are you sure you want to clear all history and statistics?')) {
+                stats = {
+                    solved: 0, streak: 0, bestStreak: 0, totalAttempts: 0, totalCorrect: 0, totalTime: 0, history: [], mistakes: []
+                };
+                updateDashboard();
+            }
+        });
+
+        ui.nextBtn.addEventListener('click', generateQuestion);
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            startTime = Date.now();
+            ui.timerDisplay.innerText = '00:00';
+            timerInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - startTime) / 1000);
+                const m = String(Math.floor(diff / 60)).padStart(2, '0');
+                const s = String(diff % 60).padStart(2, '0');
+                ui.timerDisplay.innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            return Date.now() - startTime;
+        }
+
+        /**
+         * Procedural Generation Engines
+         */
+        const Procedural = {
+            figure: (diff) => {
+                // Generate a 3x3 grid of SVGs where the last one is missing (?)
+                // Simple logic: shapes (circle, square, triangle), colors (plum, slate, gray)
+                const shapes = ['circle', 'rect', 'polygon'];
+                const colors = ['#8a1c5c', '#2c3e50', '#a0a0a0'];
+                
+                let rule = diff === 'easy' ? 'shape' : (diff === 'medium' ? 'both' : 'complex');
+                
+                let grid = [];
+                let sOffset = Math.floor(Math.random()*3);
+                let cOffset = Math.floor(Math.random()*3);
+                
+                for(let i=0; i<3; i++) {
+                    let row = [];
+                    for(let j=0; j<3; j++) {
+                        let sIdx = (i + j + sOffset) % 3;
+                        let cIdx = diff === 'easy' ? 0 : (i + j*2 + cOffset) % 3;
+                        row.push({ shape: shapes[sIdx], color: colors[cIdx] });
+                    }
+                    grid.push(row);
+                }
+                
+                const answer = grid[2][2];
+                grid[2][2] = { isTarget: true };
+                
+                const html = `<div class="question-text">Identify the missing figure in the 3x3 matrix:</div>` + 
+                             renderSvgGrid(grid);
+                
+                let choices = [
+                    answer,
+                    { shape: shapes[(shapes.indexOf(answer.shape)+1)%3], color: answer.color },
+                    { shape: answer.shape, color: colors[(colors.indexOf(answer.color)+1)%3] },
+                    { shape: shapes[(shapes.indexOf(answer.shape)+2)%3], color: colors[(colors.indexOf(answer.color)+2)%3] }
+                ];
+                
+                // Shuffle choices
+                choices.sort(() => Math.random() - 0.5);
+                
+                return {
+                    html,
+                    choices: choices.map(c => renderSingleSvg(c.shape, c.color, 40)),
+                    correctIndex: choices.findIndex(c => c.shape === answer.shape && c.color === answer.color),
+                    qText: 'Figure sequence 3x3 matrix'
+                };
+            },
+            math: (diff) => {
+                // Linear systems
+                let x = Math.floor(Math.random() * 15) + 1;
+                let y = Math.floor(Math.random() * 15) + 1;
+                let z = Math.floor(Math.random() * 15) + 1;
+                
+                let eq1, eq2, eq3, ans;
+                if(diff === 'easy') {
+                    eq1 = `X + Y = ${x + y}`;
+                    eq2 = `X - Y = ${x - y}`;
+                    ans = x;
+                    qText = 'Find X';
+                } else if(diff === 'medium') {
+                    eq1 = `2X + Y = ${2*x + y}`;
+                    eq2 = `X + 2Y = ${x + 2*y}`;
+                    ans = y;
+                    qText = 'Find Y';
+                } else {
+                    eq1 = `X + Y + Z = ${x + y + z}`;
+                    eq2 = `2X - Y + Z = ${2*x - y + z}`;
+                    eq3 = `X + 2Y - Z = ${x + 2*y - z}`;
+                    ans = z;
+                    qText = 'Find Z';
+                }
+
+                let html = `<div class="question-text">Solve the linear system for the specified variable:</div>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <div class="math-eq">${eq1}</div>
+                                <div class="math-eq">${eq2}</div>
+                                ${diff === 'hard' ? `<div class="math-eq">${eq3}</div>` : ''}
+                                <div class="math-eq" style="background:var(--plum); color:white">${qText} = ?</div>
+                            </div>`;
+                
+                let choices = [ans, ans+1, ans-2, ans+3].sort(() => Math.random() - 0.5);
+                
+                return {
+                    html,
+                    choices: choices.map(c => c.toString()),
+                    correctIndex: choices.indexOf(ans),
+                    qText: `Linear system: ${eq1}...`
+                };
+            },
+            latin: (diff) => {
+                const size = diff === 'easy' ? 3 : (diff === 'medium' ? 4 : 5);
+                // Create basic latin square
+                let grid = Array.from({length: size}, () => Array(size).fill(0));
+                for(let i=0; i<size; i++) {
+                    for(let j=0; j<size; j++) {
+                        grid[i][j] = ((i + j) % size) + 1;
+                    }
+                }
+                
+                // Shuffle rows
+                grid.sort(() => Math.random() - 0.5);
+                
+                // Pick target
+                let tr = Math.floor(Math.random() * size);
+                let tc = Math.floor(Math.random() * size);
+                let ans = grid[tr][tc];
+                grid[tr][tc] = '?';
+
+                let html = `<div class="question-text">Fill in the missing number in the Latin Square (each row/col has unique values 1-${size}):</div>
+                            <table class="latin-square">
+                                ${grid.map(row => `<tr>${row.map(cell => `<td class="${cell==='?'?'missing':''}">${cell}</td>`).join('')}</tr>`).join('')}
+                            </table>`;
+                            
+                let choices = [];
+                for(let i=1; i<=size; i++) choices.push(i);
+                while(choices.length < 4) choices.push(choices.length+1); // pad if needed
+                choices = choices.slice(0, 4).sort(() => Math.random() - 0.5);
+                if(!choices.includes(ans)) {
+                    choices[Math.floor(Math.random()*4)] = ans;
+                }
+
+                return {
+                    html,
+                    choices: choices.map(c => c.toString()),
+                    correctIndex: choices.indexOf(ans),
+                    qText: `Latin square ${size}xsize`
+                };
+            }
+        };
+
+        // Helpers
+        function renderSvgGrid(grid) {
+            let html = `<div class="svg-grid" style="grid-template-columns: repeat(3, 80px);">`;
+            grid.forEach(row => {
+                row.forEach(cell => {
+                    html += `<div class="svg-cell" style="width:80px; height:80px;">
+                        ${cell.isTarget ? '?' : renderSingleSvg(cell.shape, cell.color, 50)}
+                    </div>`;
+                });
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function renderSingleSvg(shape, color, size) {
+            let inner = '';
+            if(shape === 'circle') inner = `<circle cx="50" cy="50" r="40" fill="${color}" />`;
+            if(shape === 'rect') inner = `<rect x="15" y="15" width="70" height="70" rx="10" fill="${color}" />`;
+            if(shape === 'polygon') inner = `<polygon points="50,10 90,90 10,90" fill="${color}" />`;
+            return `<svg viewBox="0 0 100 100" width="${size}" height="${size}">${inner}</svg>`;
+        }
+
+        /**
+         * Gemini API Integration
+         */
+        async function fetchGemini(module, diff, apiKey) {
+            const prompt = `Generate a multiple-choice question for a cognitive aptitude test simulator.
+            Module: ${module} (Figure Sequences, Mathematical Equations, or Latin Squares logic)
+            Difficulty: ${diff}
+            Output MUST be strictly JSON in this format:
+            {
+                "questionHTML": "<div class='question-text'>...</div> (include inline SVG or HTML for the problem)",
+                "choices": ["choice 1 HTML/Text", "choice 2", "choice 3", "choice 4"],
+                "correctIndex": 0, // integer 0-3
+                "summary": "Short text description of problem for ledger"
+            }`;
+
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { response_mime_type: "application/json" }
+                })
+            });
+
+            if(!res.ok) throw new Error("API Error");
+            
+            const data = await res.json();
+            const content = data.candidates[0].content.parts[0].text;
+            const parsed = JSON.parse(content);
+            
+            return {
+                html: parsed.questionHTML,
+                choices: parsed.choices,
+                correctIndex: parsed.correctIndex,
+                qText: parsed.summary
+            };
+        }
+
+        /**
+         * Main Logic
+         */
+        async function generateQuestion() {
+            ui.loadingOverlay.classList.add('active');
+            ui.choicesContainer.innerHTML = '';
+            ui.questionContent.innerHTML = '';
+            ui.nextBtn.disabled = true;
+
+            const mod = ui.moduleSelect.value;
+            const diff = ui.diffSelect.value;
+            const useAi = ui.aiToggle.checked;
+            const key = ui.apiKey.value;
+
+            try {
+                if(useAi && key) {
+                    currentQuestion = await fetchGemini(mod, diff, key);
+                } else {
+                    // Fallback to procedural
+                    await new Promise(r => setTimeout(r, 400)); // Simulate loading
+                    currentQuestion = Procedural[mod](diff);
+                }
+                
+                renderQuestion();
+                startTimer();
+            } catch (err) {
+                console.error(err);
+                alert("Failed to generate question. Falling back to procedural engine.");
+                currentQuestion = Procedural[mod](diff);
+                renderQuestion();
+                startTimer();
+            } finally {
+                ui.loadingOverlay.classList.remove('active');
+                ui.nextBtn.disabled = false;
+            }
+        }
+
+        function renderQuestion() {
+            ui.arenaTitle.innerText = `${ui.moduleSelect.options[ui.moduleSelect.selectedIndex].text} - ${ui.diffSelect.value.toUpperCase()}`;
+            ui.questionContent.innerHTML = currentQuestion.html;
+            
+            const letters = ['A', 'B', 'C', 'D'];
+            ui.choicesContainer.innerHTML = currentQuestion.choices.map((c, i) => `
+                <button class="choice-btn" data-index="${i}">
+                    <span class="choice-letter">${letters[i]}</span>
+                    <span style="flex:1">${c}</span>
+                </button>
+            `).join('');
+
+            const btns = ui.choicesContainer.querySelectorAll('.choice-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => handleAnswer(parseInt(btn.dataset.index), btns));
+            });
+        }
+
+        function handleAnswer(selectedIndex, btns) {
+            const timeMs = stopTimer();
+            const isCorrect = selectedIndex === currentQuestion.correctIndex;
+            
+            btns.forEach((btn, i) => {
+                btn.disabled = true;
+                if(i === currentQuestion.correctIndex) btn.classList.add('correct');
+                else if(i === selectedIndex && !isCorrect) btn.classList.add('incorrect');
+            });
+
+            // Update Stats
+            stats.totalAttempts++;
+            stats.totalTime += timeMs;
+            
+            if(isCorrect) {
+                stats.totalCorrect++;
+                stats.solved++;
+                stats.streak++;
+                if(stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+            } else {
+                stats.streak = 0;
+                stats.mistakes.push({
+                    module: ui.moduleSelect.value,
+                    diff: ui.diffSelect.value,
+                    qText: currentQuestion.qText,
+                    timestamp: Date.now()
+                });
+            }
+
+            stats.history.push({ result: isCorrect ? 1 : 0, timeMs, timestamp: Date.now() });
+            updateDashboard();
+        }
+
+        /**
+         * Analytics Rendering
+         */
+        function renderLedger() {
+            if(stats.mistakes.length === 0) {
+                ui.ledgerContent.innerHTML = '<div class="mistake-item">No mistakes yet. Great job!</div>';
+                return;
+            }
+            // Show last 10 mistakes
+            const toShow = stats.mistakes.slice(-10).reverse();
+            ui.ledgerContent.innerHTML = toShow.map(m => `
+                <div class="mistake-item">
+                    <span style="color:var(--error); font-weight:bold;">✗</span>
+                    <strong>${m.module.toUpperCase()} (${m.diff}):</strong> ${m.qText}
+                </div>
+            `).join('');
+        }
+
+        function renderGraph() {
+            if(stats.history.length === 0) {
+                ui.graphSvg.innerHTML = '';
+                return;
+            }
+            
+            const w = ui.graphSvg.clientWidth || 300;
+            const h = ui.graphSvg.clientHeight || 150;
+            
+            // Plot moving average of accuracy over last N attempts
+            const N = Math.min(10, stats.history.length);
+            
+            let points = [];
+            for(let i=0; i<stats.history.length; i++) {
+                // Calc rolling avg accuracy up to i
+                let start = Math.max(0, i - N + 1);
+                let slice = stats.history.slice(start, i+1);
+                let correct = slice.filter(x => x.result === 1).length;
+                let acc = correct / slice.length;
+                
+                let x = (i / Math.max(1, stats.history.length - 1)) * w;
+                let y = h - (acc * h * 0.8) - (h*0.1); // 10% padding top/bottom
+                points.push(`${x},${y}`);
+            }
+
+            let pathStr = points.join(' ');
+            
+            ui.graphSvg.innerHTML = `
+                <polyline points="${pathStr}" fill="none" stroke="var(--plum)" stroke-width="3" stroke-linejoin="round" />
+                ${points.map((p, i) => {
+                    let res = stats.history[i].result;
+                    return `<circle cx="${p.split(',')[0]}" cy="${p.split(',')[1]}" r="4" fill="${res ? 'var(--success)' : 'var(--error)'}" />`
+                }).join('')}
+            `;
+        }
+
+        // Init
+        updateDashboard();
+        generateQuestion();
+        
+        // Window resize redraw graph
+        window.addEventListener('resize', renderGraph);
+    </script>
+</body>
+</html>
