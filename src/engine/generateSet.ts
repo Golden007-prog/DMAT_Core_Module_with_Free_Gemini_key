@@ -35,31 +35,33 @@ export function validateQuestion(q: Question): ValidationResult {
   }
 }
 
+/** One validated question at a set position — reproducible given (seed, index),
+ *  so chunked generation with progress display equals full-set generation. */
+export function generateQuestionAt(cfg: GenerateSetConfig, index: number): Question {
+  const difficulty = difficultyFor(cfg, index);
+  // derived per-question seed → any single question is independently replayable
+  const prng = createPrng(deriveSeed(cfg.seed, index));
+  let question: Question;
+  switch (cfg.subtest) {
+    case 'figures':
+      question = generateFigureQuestion(difficulty, prng);
+      break;
+    case 'equations':
+      question = generateEquationQuestion(difficulty, prng, cfg.equationAskMode ?? 'choice');
+      break;
+    case 'latin':
+      question = generateLatinQuestion(difficulty, prng);
+      break;
+  }
+  const check = validateQuestion(question);
+  if (!check.ok) {
+    throw new Error(`generated question failed validation: ${check.reasons.join('; ')}`);
+  }
+  return question;
+}
+
 /** R3/R6: the full set exists and every question passed its validator before
  *  the session can become startable. Pure and reproducible given the seed. */
 export function generateSet(cfg: GenerateSetConfig): Question[] {
-  const questions: Question[] = [];
-  for (let i = 0; i < cfg.count; i++) {
-    const difficulty = difficultyFor(cfg, i);
-    // derived per-question seed → any single question is independently replayable
-    const prng = createPrng(deriveSeed(cfg.seed, i));
-    let question: Question;
-    switch (cfg.subtest) {
-      case 'figures':
-        question = generateFigureQuestion(difficulty, prng);
-        break;
-      case 'equations':
-        question = generateEquationQuestion(difficulty, prng, cfg.equationAskMode ?? 'choice');
-        break;
-      case 'latin':
-        question = generateLatinQuestion(difficulty, prng);
-        break;
-    }
-    const check = validateQuestion(question);
-    if (!check.ok) {
-      throw new Error(`generated question failed validation: ${check.reasons.join('; ')}`);
-    }
-    questions.push(question);
-  }
-  return questions;
+  return Array.from({ length: cfg.count }, (_, i) => generateQuestionAt(cfg, i));
 }

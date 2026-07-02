@@ -154,6 +154,9 @@ export interface Session {
   questions: Question[];
   /** answers keyed by question UUID — never by array index (R5) */
   answers: Record<string, unknown>;
+  /** accumulated visible-to-committed time per question UUID; part of the
+   *  persisted snapshot so refresh-resume keeps timing data */
+  answerTimesMs: Record<string, number>;
   flagged: string[];
   state: SessionState;
   startedAt?: number;
