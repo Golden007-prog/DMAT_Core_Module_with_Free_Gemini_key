@@ -22,7 +22,11 @@ test('restart mid-test produces a brand-new full set (R1)', async ({ page }) => 
   await startPractice(page, 'Latin Squares', { count: 5, instantFeedback: false });
   await page.getByRole('radio', { name: 'Answer A' }).click();
   // navigate home (practice keeps nav) and regenerate — confirm discard
-  await page.getByRole('link', { name: 'Practice' }).click();
+  await page.getByRole('link', { name: 'Practice', exact: true }).click();
+  // Home remounts with defaults — re-select the same configuration
+  await page.getByRole('radio', { name: /Latin Squares/ }).click();
+  await page.getByRole('button', { name: 'easy', exact: true }).click();
+  await page.getByRole('button', { name: '5', exact: true }).click();
   await page.getByRole('button', { name: 'Generate set' }).click();
   await page.getByRole('button', { name: /discard and generate/i }).click();
   await expect(page.getByRole('button', { name: /start test/i })).toBeVisible({ timeout: 15_000 });
@@ -49,7 +53,11 @@ test('exam mode: timer expiry auto-submits exactly once', async ({ page }) => {
       durationMs: 3000,
     });
   });
-  await page.goto('/run');
+  // client-side navigation — a full reload would drop the in-memory session
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/run');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
   await page.getByRole('button', { name: /start test/i }).click();
   await expect(page.getByRole('heading', { name: 'Results' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/unanswered/)).toBeVisible();
