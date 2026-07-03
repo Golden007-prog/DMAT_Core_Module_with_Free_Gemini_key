@@ -2,8 +2,14 @@ import { createStore, useStore, type StoreApi } from 'zustand';
 import type { Question, Session } from '../engine/types';
 import {
   generateQuestionAt as engineGenerateQuestionAt,
+  validateQuestion,
   type GenerateSetConfig,
 } from '../engine/generateSet';
+import {
+  fetchCachedSet as cloudFetchCachedSet,
+  pushGeneratedSet as cloudPushGeneratedSet,
+  type CachedSet,
+} from '../cloud/setCache';
 import { createSession, transition, type SessionConfig } from './sessionMachine';
 import { isAnswerCorrect } from './scoring';
 import { createTimer, realClock, type Timer } from './timer';
@@ -24,6 +30,9 @@ export interface SessionDeps {
     cfg: GenerateSetConfig,
     signal: AbortSignal,
   ) => Promise<{ questions: Question[]; source: 'gemini+validated' | 'mixed' } | null>;
+  /** cloud set cache (signed-in users): instant exact retries, AI-set recall */
+  fetchCachedSet: (cfg: GenerateSetConfig) => Promise<CachedSet | null>;
+  pushGeneratedSet: (cfg: GenerateSetConfig, questions: Question[], source: string) => Promise<void>;
 }
 
 export interface SessionStore {
@@ -64,6 +73,8 @@ const defaultDeps: SessionDeps = {
   yieldBetween: () => new Promise((r) => setTimeout(r, 0)),
   generateQuestionAt: engineGenerateQuestionAt,
   aiEquationSet: fetchAiEquationSet,
+  fetchCachedSet: cloudFetchCachedSet,
+  pushGeneratedSet: cloudPushGeneratedSet,
 };
 
 export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreApi<SessionStore> {
@@ -158,6 +169,29 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           equationAskMode: cfg.equationAskMode,
         };
 
+        // Exact-seed retries first check the signed-in user's cloud cache —
+        // instant loads, and the only way to replay an AI-generated set.
+        // Every cached question still passes its validator before use (R6).
+        if (opts.keepSeed) {
+          const cached = await deps.fetchCachedSet(genCfg).catch(() => null);
+          if (abort.signal.aborted || get().session?.id !== sid) return;
+          if (
+            cached &&
+            cached.questions.length === cfg.questionCount &&
+            cached.questions.every((q) => validateQuestion(q).ok)
+          ) {
+            set({
+              session: transition(get().session!, {
+                type: 'GENERATED',
+                questions: cached.questions,
+                source: cached.source as 'deterministic' | 'gemini+validated' | 'mixed',
+              }),
+              progress: null,
+            });
+            return;
+          }
+        }
+
         // G1: AI-generated equation sets (optional enhancement, never a gate).
         // Runs while the timer is disarmed; stale/aborted results are discarded.
         if (cfg.subtest === 'equations') {
@@ -172,6 +206,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
               }),
               progress: null,
             });
+            void deps.pushGeneratedSet(genCfg, ai.questions, ai.source).catch(() => {});
             return;
           }
         }
@@ -190,6 +225,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           session: transition(get().session!, { type: 'GENERATED', questions }),
           progress: null,
         });
+        void deps.pushGeneratedSet(genCfg, questions, 'deterministic').catch(() => {});
       },
 
       async startSessionFromQuestions(questions, meta) {

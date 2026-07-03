@@ -7,6 +7,7 @@ import { exportAll, importAll } from '../../storage/exportImport';
 import { useHistory } from '../../state/historyStore';
 import { toast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AccountCard from '../components/AccountCard';
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -71,6 +72,8 @@ export default function Settings() {
   return (
     <section className="mx-auto max-w-2xl space-y-5">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      <AccountCard />
 
       <Card title="Gemini AI (optional — bring your own key)">
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">

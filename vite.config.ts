@@ -4,7 +4,11 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages serves from /<repo-name>/ — the deploy workflow sets this.
+const base = process.env.VITE_BASE_PATH || '/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -26,7 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: 'index.html',
+        navigateFallback: `${base}index.html`,
       },
     }),
   ],

@@ -1,76 +1,101 @@
-# CoreForge — dMAT Core Module Practice
+# dMAT Practice — Free Core Module Test Simulator (Figure Sequences · Equations · Latin Squares)
 
-Free, unlimited, browser-based practice for the **Core Module of the dMAT** (digitaler Mastertest,
-the aptitude test by g.a.s.t. / TestDaF-Institut used for admission to German Master's programmes —
-and, from 2026, part of APS verification for Indian applicants).
+**Practice the dMAT (digitaler Mastertest) Core Module for free, with unlimited questions and real
+exam timing.** CoreForge is a free, open-source dMAT practice platform covering all three Core
+Module subtests — **Figure Sequences (Figurenreihen), Mathematical Equations, and Latin Squares** —
+in the official format: 20 tasks in 25 minutes, single choice, no note-taking.
 
-There is almost no free practice material beyond one official PDF. CoreForge fills that gap with
-**format-faithful, difficulty-calibrated, freshly generated tasks** in all three Core Module subtests:
+### ▶ [**Start practicing now — no signup, no install**](https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/)
 
-| Subtest | Format | Timing |
-|---|---|---|
-| **Figure Sequences** | 4×4 matrices; predict the 5th and 6th frame from 3 options each | 20 tasks / 25:00 |
-| **Mathematical Equations** | small systems, integer solutions 1–20, exactly one solution | 20 tasks / 25:00 |
-| **Latin Squares** | 5×5 grid, letters A–E, deduce the red "?" | 20 tasks / 25:00 |
+[![Live](https://img.shields.io/badge/Live-github.io-A3195B)](https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-144%20unit%20%2B%207%20e2e-2E8B57)](#quality--correctness)
 
-## What makes it trustworthy
+![CoreForge home screen — choose Figure Sequences, Mathematical Equations, or Latin Squares](docs/screenshots/home.png)
 
-- **Deterministic, validated generation.** Every question comes from a seeded generator and must pass
-  a programmatic validator (unique correct answer, distinct distractors, solvable under the official
-  rule system) before it can enter a set. Figure tasks additionally pass an *inferability* check: the
-  rules must be uniquely deducible from the four visible frames.
-- **Exam-honest timing.** Deadline-based timer (no drift), armed only after the first question paints,
-  refresh-safe, auto-submit exactly once. Generation time never costs you seconds.
-- **Real exam behaviour.** Exam mode is forward-only (configurable — official behaviour unconfirmed),
-  no pause, no note-taking reminder, blanks count as wrong, full Core run with 60 s breaks.
-- **Honest scoring.** Practice accuracy is reported as accuracy; the app never pretends to predict the
-  official 0–200 standardised score.
+## Who is this for?
 
-## Features
+Anyone preparing for the **dMAT** — the standardized aptitude test by **g.a.s.t. / TestDaF-Institut**
+required for admission to many **German Master's programmes**. From 2026 the dMAT is also part of
+**APS verification for applicants from India** (engineering, computer science, and business fields,
+Summer Semester 2027 intakes onward). Official material offers only ~6 example exercises per task
+type; this simulator gives you **unlimited, freshly generated practice** in exactly the same formats.
 
-Practice & exam modes · instant feedback with step-by-step explanations · sequence playback animation
-for figure tasks · full history with **retry this exact set** (seeded reproducibility) and **retry my
-mistakes** · analytics with accuracy trends, weakness leaderboard by rule type, pacing vs the 75 s
-budget, streaks, and deterministic improvement insights · Learn pages with animated rule demos ·
-dark/light theme · keyboard-only operation · PWA (works fully offline) · export/import your data.
+Searching for any of these? You're in the right place:
+*dMAT practice test · dMAT Core Module · digitaler Mastertest Übung · dMAT Figurenreihen practice ·
+dMAT preparation free · g.a.s.t. Mastertest practice · dMAT test simulator · APS dMAT India*
 
-## Optional AI (BYOK — bring your own key)
+## What you get
 
-With a free [Google AI Studio](https://aistudio.google.com/apikey) Gemini key, CoreForge adds:
-AI-generated equation variety (**every AI system is re-validated locally** — invalid ones are silently
-replaced by deterministic questions), per-mistake tutor explanations, and a coaching narrative from
-your aggregated stats. The key lives only in your browser's localStorage and is sent only to
-`generativelanguage.googleapis.com`. A daily call budget (default 25) protects your free-tier quota.
-**No key, no network → everything still works.**
+| | |
+|---|---|
+| **Three exam-faithful subtests** | 4×4 figure matrices (predict the 5th & 6th frame), equation systems with whole-number solutions 1–20, and 5×5 Latin squares with the red "?" cell |
+| **Real exam timing** | 20 tasks / 25:00 per subtest (75 s per task), drift-free timer, auto-submit, and a full 3-subtest exam run with 60-second breaks |
+| **Unlimited questions** | Every set is freshly generated and machine-validated — never a broken question, never a wrong answer key |
+| **Instant feedback + explanations** | Step-by-step deterministic solutions, rule breakdowns, and an animated sequence replay for figure tasks |
+| **Progress analytics** | Accuracy trends, weakness detection by rule type (e.g. "x+1 acceleration", "hidden singles"), pacing vs the 75 s budget, streaks, and concrete drill suggestions |
+| **Retry tools** | Replay the exact same set (seeded), or auto-build a set from your past mistakes |
+| **Works offline** | Installable PWA; the full generator runs in your browser — no server, no account required |
+| **Optional Google sign-in** | Sync history, settings, and generated sets across devices via Supabase ([setup guide](docs/GOOGLE_LOGIN_SETUP.md)) |
+| **Optional free AI tutor** | Bring your own free Gemini API key for AI-generated equation variety and per-mistake tutor explanations — [get a free key](https://aistudio.google.com/apikey) |
 
-## Development
+![Figure Sequences task — four matrices with answer options for the 5th and 6th frame](docs/screenshots/figure-sequences.png)
+
+## Why trust the questions?
+
+Most practice sites hand-write a few dozen questions. CoreForge **generates and proves** each one:
+
+- Every question passes a **programmatic validator** before you see it: exactly one correct answer,
+  distinct plausible distractors, solvable under the official rule system.
+- Figure tasks pass an **inferability check** — the moving/rotating/colour rules must be uniquely
+  deducible from the four visible frames, or the task is regenerated.
+- Equation systems are **brute-force proven** to have exactly one solution in 1–20.
+- Latin squares are verified so that **every valid completion agrees** on the "?" cell, and the
+  deduction depth matches the difficulty band.
+- The engine is covered by **1000-seed property tests per task type per difficulty** plus a
+  regression suite for timing/state bugs (144 unit tests, 7 end-to-end tests).
+
+## Quality & correctness
 
 ```bash
 npm install
-npm run dev        # dev server
-npm test           # vitest unit + regression suites (engine ×1000-seed property tests, R1–R5)
-npm run build      # typecheck + production build (static, PWA)
-npm run e2e        # Playwright end-to-end (needs: npx playwright install chromium)
+npm test           # 144 unit + regression tests (engine properties, timer, R1–R5)
+npm run e2e        # 7 Playwright end-to-end flows (needs: npx playwright install chromium)
+npm run dev        # local dev server
+npm run build      # static production build (deployable anywhere)
 ```
 
-### Architecture
+**Architecture:** pure deterministic generators + validators (`src/engine/`), a pure session state
+machine with a deadline-based timer (`src/state/`), local-first storage in IndexedDB
+(`src/storage/`), optional Supabase cloud sync (`src/cloud/`), optional Gemini layer with a local
+validation firewall (`src/ai/`), React 19 + TypeScript + Tailwind v4 UI (`src/ui/`).
 
-```
-src/engine/    pure deterministic generators + validators (figures, equations, latin) + seeded PRNG
-src/state/     pure session state machine, deadline timer, zustand stores, insights
-src/storage/   Dexie (IndexedDB) with in-memory fallback, export/import
-src/ai/        optional Gemini layer: model chain, backoff, budget guard, validation firewall
-src/ui/        React screens + SVG question rendering + charts
-src/tests/     unit, state-machine, regression (R1–R5), UI tests
-e2e/           Playwright specs
-```
+![Analytics — accuracy trends, difficulty heat strip, weakness leaderboard, pacing](docs/screenshots/analytics.png)
 
-Deploy anywhere static: `dist/` after `npm run build`. Configs included for Vercel (`vercel.json`)
-and Cloudflare Pages (`public/_redirects`). An optional Cloudflare Worker proxy template for a shared
-Gemini key lives in `deploy/worker-proxy.ts` (off by default).
+## Cloud sync & Google login (optional)
 
-## Disclaimer
+The app is fully usable anonymously and offline. Signing in with Google adds cross-device sync of
+your history, settings, and generated sets, backed by Supabase with row-level security (each user
+can only ever read/write their own rows — see [`supabase/schema.sql`](supabase/schema.sql)).
+To wire up your own instance, follow [docs/GOOGLE_LOGIN_SETUP.md](docs/GOOGLE_LOGIN_SETUP.md).
 
-Unofficial practice tool. Not affiliated with g.a.s.t., TestDaF-Institut, or d-mat.de. Question
-formats follow publicly documented dMAT task types; all questions are originally generated. dMAT is a
-trademark of its owners. For official example tasks, see [d-mat.de](https://www.d-mat.de).
+## FAQ
+
+**Is this the official dMAT test?** No. This is an independent, unofficial practice tool. For
+official information and the original example exercises, visit [d-mat.de](https://www.d-mat.de).
+
+**Does a good score here guarantee a good dMAT score?** No — the real dMAT reports a standardised
+0–200 score that cannot be derived from practice accuracy. The app uses an honest ≥85% accuracy
+heuristic for readiness and says so in the UI.
+
+**Is it really free?** Yes — MIT-licensed, static hosting, no accounts required, no ads, no
+tracking. The optional AI features use *your own* free-tier Gemini key.
+
+**Can I practice on my phone?** Yes — the whole exam flow is responsive and keyboard/touch friendly,
+and the app installs as a PWA for offline use.
+
+## License & disclaimer
+
+[MIT](LICENSE). Unofficial practice tool — not affiliated with g.a.s.t., TestDaF-Institut, or
+d-mat.de. Question formats follow publicly documented dMAT task types; **all questions are
+originally generated**. dMAT is a trademark of its owners.

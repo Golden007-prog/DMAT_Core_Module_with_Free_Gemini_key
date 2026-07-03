@@ -5,4 +5,9 @@ coverage/
 playwright-report/
 test-results/
 *.local
+*.tsbuildinfo
 .DS_Store
+
+# local tooling / assistant config — never publish
+.claude/
+.mcp.json

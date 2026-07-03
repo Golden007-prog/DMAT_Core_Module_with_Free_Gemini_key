@@ -10,9 +10,12 @@ if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__coreforge = { sessionStore };
 }
 
+// GitHub Pages hosts the app under /<repo-name>/ — Vite injects the base
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <App />
     </BrowserRouter>
   </StrictMode>,

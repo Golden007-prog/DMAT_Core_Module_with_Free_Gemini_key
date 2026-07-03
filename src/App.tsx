@@ -3,6 +3,8 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useThemeStore, applyThemeClass } from './state/themeStore';
 import { sessionStore, useSession } from './state/sessionStore';
 import { initTabLock } from './state/tabLock';
+import { useAuth } from './cloud/authStore';
+import { initCloudSync } from './cloud/sync';
 import TopBar from './ui/shell/TopBar';
 import Footer from './ui/shell/Footer';
 import ToastHost from './ui/components/Toast';
@@ -48,6 +50,12 @@ export default function App() {
 
   // two-tab lock (§11): second tab goes read-only
   useEffect(() => initTabLock(() => sessionStore.getState().setReadOnly(true)), []);
+
+  // optional cloud account (Supabase): auth session + background sync
+  useEffect(() => {
+    useAuth.getState().init();
+    initCloudSync();
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col">
