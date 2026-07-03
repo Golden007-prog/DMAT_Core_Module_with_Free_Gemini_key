@@ -8,6 +8,7 @@ import { formatMs, formatPercent } from '../format';
 import { ruleTagLabel } from '../ruleTagLabels';
 import { computeSessionPoints } from '../../state/points';
 import { useAuth } from '../../cloud/authStore';
+import { toast } from '../components/Toast';
 
 function ScoreRing({ accuracy }: { accuracy: number }) {
   const r = 52;
@@ -35,6 +36,26 @@ function ScoreRing({ accuracy }: { accuracy: number }) {
 }
 
 const DIFFS: Difficulty[] = ['easy', 'medium', 'hard'];
+
+/** celebration for ≥85% (the readiness heuristic); hidden under reduced motion */
+function Confetti() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-40 h-0 motion-reduce:hidden">
+      {Array.from({ length: 26 }, (_, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${(i * 137) % 100}%`,
+            background: ['#A3195B', '#F2C230', '#2C5FA8', '#3E9B4F', '#E8762C'][i % 5],
+            animationDelay: `${(i % 9) * 0.12}s`,
+            animationDuration: `${2 + ((i * 7) % 10) / 8}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function PointsRankLink({ hasPoints }: { hasPoints: boolean }) {
   const user = useAuth((s) => s.user);
@@ -89,14 +110,45 @@ export default function Results() {
 
   const score = session.score;
   const points = computeSessionPoints(session);
+  const slowest = session.questions
+    .map((q, i) => ({ index: i, ms: session.answerTimesMs[q.id] ?? 0 }))
+    .filter((t) => t.ms > 0);
+  const maxTime = Math.max(1, ...slowest.map((t) => t.ms));
   const weakest = Object.entries(score.perRuleTag)
     .filter(([, v]) => v.total >= 2)
     .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)
     .slice(0, 3);
 
+  const shareText = () => {
+    const name =
+      session.subtest === 'figures'
+        ? 'Figure Sequences'
+        : session.subtest === 'equations'
+          ? 'Mathematical Equations'
+          : session.subtest === 'latin'
+            ? 'Latin Squares'
+            : 'Core Module';
+    return `dMAT practice — ${name} (${session.difficulty}, ${session.questionCount} questions): ${formatPercent(score.accuracy)} accuracy, +${points.total} pts. Train free: https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/`;
+  };
+
   return (
     <section className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold">Results</h1>
+      {score.accuracy >= 0.85 && <Confetti />}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Results</h1>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard?.writeText(shareText()).then(
+              () => toast('Result copied — paste it anywhere.', 'success'),
+              () => toast('Could not copy on this browser.', 'error'),
+            );
+          }}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Share result
+        </button>
+      </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr]">
         <div className="flex flex-col items-center rounded-card border border-zinc-200 bg-surface p-6 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
@@ -146,6 +198,29 @@ export default function Results() {
           </div>
         </div>
       </div>
+
+      {slowest.length > 0 && (
+        <div className="mt-4 rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Time per question</h2>
+          <div className="mt-2 space-y-1.5">
+            {slowest.map((t) => (
+              <div key={t.index} className="flex items-center gap-2 text-xs">
+                <span className="w-8 text-right tabular-nums text-zinc-500">Q{t.index + 1}</span>
+                <div className="h-3 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+                  <div
+                    className={`h-full rounded-r ${t.ms > 75_000 ? 'bg-warning' : 'bg-accent dark:bg-accent-dark'}`}
+                    style={{ width: `${(t.ms / maxTime) * 100}%` }}
+                  />
+                </div>
+                <span className={`w-12 text-right tabular-nums ${t.ms > 75_000 ? 'font-semibold text-warning' : 'text-zinc-500'}`}>
+                  {Math.round(t.ms / 1000)}s
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">Amber = over the 75 s exam budget.</p>
+        </div>
+      )}
 
       {weakest.length > 0 && (
         <div className="mt-4 rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">

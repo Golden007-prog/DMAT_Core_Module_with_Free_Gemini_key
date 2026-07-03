@@ -20,7 +20,11 @@ function OptionGroup({
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-semibold">{label}</legend>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3" role="radiogroup" aria-label={label}>
+      <div
+        className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 sm:grid sm:snap-none sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:pb-0"
+        role="radiogroup"
+        aria-label={label}
+      >
         {options.map((frame, i) => {
           const isSelected = selected === i;
           const isCorrect = correct === i;
@@ -42,7 +46,7 @@ function OptionGroup({
               aria-label={`${label}, matrix ${i + 1}`}
               disabled={!onSelect}
               onClick={() => onSelect?.(i as 0 | 1 | 2)}
-              className={`relative rounded-xl border-2 bg-white p-1.5 transition-all ${border} ${
+              className={`relative min-w-[42%] shrink-0 snap-center touch-manipulation rounded-xl border-2 bg-white p-1.5 transition-all sm:min-w-0 sm:shrink ${border} ${
                 onSelect ? 'cursor-pointer' : 'cursor-default'
               }`}
             >

@@ -1,8 +1,9 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useThemeStore } from '../../state/themeStore';
+import { useThemeStore, resolvedTheme } from '../../state/themeStore';
 import { useSession } from '../../state/sessionStore';
 import { useAuth, authBypassed } from '../../cloud/authStore';
 import { cloudEnabled } from '../../cloud/supabaseClient';
+import OfflineIndicator from './OfflineIndicator';
 
 const navItems = [
   { to: '/', label: 'Practice', short: 'Practice' },
@@ -14,7 +15,9 @@ const navItems = [
 ];
 
 export default function TopBar() {
-  const { theme, toggle } = useThemeStore();
+  const themeChoice = useThemeStore((s) => s.theme);
+  const toggle = useThemeStore((s) => s.toggle);
+  const theme = resolvedTheme(themeChoice);
   const location = useLocation();
   const user = useAuth((s) => s.user);
   const examRunning = useSession(
@@ -49,7 +52,7 @@ export default function TopBar() {
         </NavLink>
 
         {!inRunner && !signedOut && (
-          <nav aria-label="Main" className="ml-auto flex items-center gap-0.5 overflow-x-auto sm:gap-1">
+          <nav aria-label="Main" className="ml-auto hidden items-center gap-0.5 overflow-x-auto sm:flex sm:gap-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
@@ -69,6 +72,10 @@ export default function TopBar() {
           </nav>
         )}
 
+        {/* pushes the right cluster over whenever the desktop nav is absent
+            (always on mobile — the nav lives in the bottom bar there) */}
+        <span className={`ml-auto ${!inRunner && !signedOut ? 'sm:ml-0' : ''}`} aria-hidden="true" />
+        <OfflineIndicator />
         {!inRunner && user && (
           <NavLink
             to="/settings"
@@ -88,7 +95,7 @@ export default function TopBar() {
         <button
           type="button"
           onClick={toggle}
-          className={`${inRunner || signedOut ? 'ml-auto' : ''} rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800`}
+          className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
         >

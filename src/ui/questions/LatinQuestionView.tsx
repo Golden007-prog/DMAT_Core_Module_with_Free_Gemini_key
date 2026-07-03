@@ -1,9 +1,11 @@
 import type { LatinLetter, LatinQuestion } from '../../engine/types';
+import { glyphFor } from '../../engine/latinSquares/alphabets';
 import LatinGrid from '../components/LatinGrid';
 
 const LETTERS: LatinLetter[] = ['A', 'B', 'C', 'D', 'E'];
 
-/** §3.3: find the letter behind the red "?" — answer row beneath the grid. */
+/** §3.3: find the symbol behind the red "?" — answer row beneath the grid.
+ *  Renders in the question's display alphabet (letters/digits/greek/shapes). */
 export default function LatinQuestionView({
   question,
   answer,
@@ -24,13 +26,15 @@ export default function LatinQuestionView({
         question={question.question}
         hoverAid={hoverAid && !!onAnswer}
         resolvedLetter={reveal ? question.solutionLetter : undefined}
+        alphabet={question.alphabet}
       />
       <div
         className="flex justify-center gap-2"
         role="radiogroup"
-        aria-label="Choose the letter for the question mark"
+        aria-label="Choose the symbol for the question mark"
       >
         {LETTERS.map((letter) => {
+          const glyph = glyphFor(question.alphabet, letter);
           const isSelected = answer === letter;
           const isCorrect = letter === question.solutionLetter;
           const style = reveal
@@ -48,12 +52,12 @@ export default function LatinQuestionView({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              aria-label={`Answer ${letter}`}
+              aria-label={`Answer ${glyph}`}
               disabled={!onAnswer}
               onClick={() => onAnswer?.(letter)}
-              className={`h-12 w-12 rounded-lg border-2 text-xl font-bold transition-colors sm:h-14 sm:w-14 ${style}`}
+              className={`h-12 w-12 touch-manipulation rounded-lg border-2 text-xl font-bold transition-colors sm:h-14 sm:w-14 ${style}`}
             >
-              {letter}
+              {glyph}
             </button>
           );
         })}

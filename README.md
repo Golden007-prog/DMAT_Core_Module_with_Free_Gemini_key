@@ -28,13 +28,14 @@ dMAT preparation free · g.a.s.t. Mastertest practice · dMAT test simulator · 
 
 | | |
 |---|---|
-| **Three exam-faithful subtests** | 4×4 figure matrices (predict the 5th & 6th frame), equation systems with whole-number solutions 1–20, and 5×5 Latin squares with the red "?" cell |
+| **Three exam-faithful subtests** | 4×4 figure matrices (predict the 5th & 6th frame), equation systems with whole-number solutions 1–20, and 5×5 Latin squares with the red "?" cell — practise them with letters, digits, Greek letters, or shapes |
 | **Real exam timing** | 20 tasks / 25:00 per subtest (75 s per task), drift-free timer, auto-submit, and a full 3-subtest exam run with 60-second breaks |
 | **Unlimited questions** | Every set is freshly generated and machine-validated — never a broken question, never a wrong answer key |
 | **Instant feedback + explanations** | Step-by-step deterministic solutions, rule breakdowns, and an animated sequence replay for figure tasks |
 | **Weekly rankings & leagues** | Difficulty-weighted points (10/20/35 per correct, ×1.15 for mixed sets) plus an under-time bonus of up to +50%; climb Bronze → Silver → Gold → Diamond → Legend on a leaderboard that resets every Monday (UTC) |
 | **Progress analytics** | Accuracy trends, weakness detection by rule type (e.g. "x+1 acceleration", "hidden singles"), pacing vs the 75 s budget, streaks, and concrete drill suggestions |
-| **Retry tools** | Replay the exact same set (seeded), or auto-build a set from your past mistakes |
+| **Retry tools** | Replay the exact same set (seeded), drill your all-time mistakes notebook, or auto-build a set from a session's errors |
+| **Achievements & streaks** | Ten badges (perfect set, speed demon, 7-day streak…), a daily goal ring, and a practice calendar |
 | **Cross-device sync** | Sign in once (Google or email): history, settings, and your Gemini key follow you everywhere, stored in your own access-controlled rows |
 | **Community question pool** | AI-generated questions are shared (content-hash deduplicated — the same question is never stored twice) so even users without an API key get fresh AI variety, instantly |
 | **Works offline** | Installable PWA; the full generator runs in your browser — after signing in once, practice works without a connection |

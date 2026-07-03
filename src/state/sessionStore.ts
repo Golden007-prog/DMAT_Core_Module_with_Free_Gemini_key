@@ -167,6 +167,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           count: cfg.questionCount,
           seed: cfg.seed,
           equationAskMode: cfg.equationAskMode,
+          latinAlphabet: cfg.latinAlphabet as GenerateSetConfig['latinAlphabet'],
         };
 
         // Exact-seed retries first check the signed-in user's cloud cache —

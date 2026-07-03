@@ -1,30 +1,35 @@
 import { useState } from 'react';
 import type { LatinLetter } from '../../engine/types';
+import { glyphFor, type LatinAlphabetId } from '../../engine/latinSquares/alphabets';
 
 /** 5×5 Latin square with the red "?" cell, exactly like the official
- *  material. Practice-only hover aid highlights the full row + column. */
+ *  material. Supports display alphabets (letters, digits, greek, shapes);
+ *  practice-only hover aid highlights the full row + column. */
 export default function LatinGrid({
   grid,
   question,
   hoverAid = false,
   resolvedLetter,
+  alphabet,
 }: {
   grid: (LatinLetter | null)[][];
   question: { row: number; col: number };
   hoverAid?: boolean;
-  /** review mode: show the solution letter inside the "?" cell */
+  /** review mode: show the solution inside the "?" cell */
   resolvedLetter?: LatinLetter;
+  alphabet?: LatinAlphabetId;
 }) {
   const [hover, setHover] = useState<{ row: number; col: number } | null>(null);
   const cell = 48;
   const size = cell * 5;
+  const isShapes = alphabet === 'shapes';
 
   return (
     <svg
       viewBox={`0 0 ${size} ${size}`}
-      className="mx-auto w-full max-w-[280px]"
+      className="mx-auto w-full max-w-[280px] touch-manipulation"
       role="img"
-      aria-label="5 by 5 letter grid with one cell marked by a question mark"
+      aria-label={`5 by 5 symbol grid with one cell marked by a question mark`}
     >
       <rect width={size} height={size} fill="#FFFFFF" />
       {grid.map((row, r) =>
@@ -56,19 +61,19 @@ export default function LatinGrid({
                   fontWeight={700}
                   fill={resolvedLetter ? '#2E8B57' : '#C43D3D'}
                 >
-                  {resolvedLetter ?? '?'}
+                  {resolvedLetter ? glyphFor(alphabet, resolvedLetter) : '?'}
                 </text>
               ) : (
                 letter && (
                   <text
                     x={c * cell + cell / 2}
-                    y={r * cell + cell / 2 + 8}
+                    y={r * cell + cell / 2 + (isShapes ? 7 : 8)}
                     textAnchor="middle"
-                    fontSize={24}
+                    fontSize={isShapes ? 20 : 24}
                     fontWeight={600}
                     fill="#1A1A1A"
                   >
-                    {letter}
+                    {glyphFor(alphabet, letter)}
                   </text>
                 )
               )}

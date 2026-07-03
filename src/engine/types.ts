@@ -115,6 +115,8 @@ export interface LatinQuestion extends BaseQuestion {
   solutionLetter: LatinLetter;
   inferenceDepth: number;
   explanationSteps: string[]; // ordered forced deductions
+  /** display alphabet — internal logic always runs on A–E ('letters' when absent) */
+  alphabet?: 'letters' | 'digits' | 'greek' | 'shapes';
 }
 
 export type Question = FigureQuestion | EquationQuestion | LatinQuestion;
@@ -151,6 +153,8 @@ export interface Session {
   questionCount: number;
   durationMs: number;
   seed: number;
+  /** latin display alphabet the set was configured with (exact retries) */
+  latinAlphabet?: string;
   questions: Question[];
   /** answers keyed by question UUID — never by array index (R5) */
   answers: Record<string, unknown>;

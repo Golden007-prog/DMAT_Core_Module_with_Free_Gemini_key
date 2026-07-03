@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useHistory } from '../../state/historyStore';
 import { sessionStore } from '../../state/sessionStore';
 import { computeInsights, computeStreakDays } from '../../state/insights';
+import { computeSessionPoints } from '../../state/points';
+import { weekKey, leagueFor } from '../../cloud/rankings';
 import { useChartPalette } from '../charts/palette';
 import LineChart, { type LineSeries } from '../charts/LineChart';
 import HeatStrip from '../charts/HeatStrip';
 import WeaknessBars from '../charts/WeaknessBars';
+import PracticeHeatmap from '../charts/PracticeHeatmap';
 import CoachCard from '../components/CoachCard';
-import { formatPercent } from '../format';
+import { formatMs, formatPercent } from '../format';
 import type { Difficulty, SubtestType } from '../../engine/types';
 
 const SUBTEST_NAMES: Record<SubtestType, string> = {
@@ -109,6 +112,43 @@ export default function Analytics() {
     return total > 0 ? correct / total : null;
   }, [attempts]);
 
+  const totals = useMemo(
+    () => ({
+      questions: attempts.length,
+      timeMs: attempts.reduce((a, r) => a + r.timeMs, 0),
+    }),
+    [attempts],
+  );
+
+  const weekPoints = useMemo(() => {
+    const wk = weekKey();
+    return scored
+      .filter((s) => weekKey(new Date(s.createdAt)) === wk)
+      .reduce((a, s) => a + computeSessionPoints(s).total, 0);
+  }, [scored]);
+
+  const heatmapCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const a of attempts) {
+      const key = new Date(a.ts).toISOString().slice(0, 10);
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [attempts]);
+
+  const exportCsv = () => {
+    const header = 'timestamp,subtest,difficulty,correct,timeMs,ruleTags';
+    const rows = attempts.map((a) =>
+      [new Date(a.ts).toISOString(), a.type, a.difficulty, a.correct, a.timeMs, `"${a.ruleTags.join(';')}"`].join(','),
+    );
+    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `coreforge-attempts-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   if (loaded && scored.length === 0) {
     return (
       <section className="py-10 text-center">
@@ -127,17 +167,41 @@ export default function Analytics() {
     <section className="space-y-5">
       <h1 className="text-2xl font-bold">Analytics</h1>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
         {[
           { label: 'Sessions', value: String(scored.length) },
+          { label: 'Questions', value: String(totals.questions) },
+          { label: 'Time practised', value: totals.timeMs > 0 ? formatMs(totals.timeMs) : '—' },
           { label: 'Overall accuracy', value: overall === null ? '—' : formatPercent(overall) },
           { label: 'Day streak', value: streak > 0 ? `${streak} 🔥` : '0' },
+          {
+            label: 'This week',
+            value: weekPoints > 0 ? `${weekPoints} pts` : '0 pts',
+            sub: leagueFor(weekPoints).name,
+          },
         ].map((t) => (
-          <div key={t.label} className="rounded-card border border-zinc-200 bg-surface p-4 text-center shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
-            <p className="text-2xl font-bold tabular-nums">{t.value}</p>
-            <p className="mt-0.5 text-xs text-zinc-500 uppercase tracking-wide dark:text-zinc-400">{t.label}</p>
+          <div key={t.label} className="rounded-card border border-zinc-200 bg-surface p-3 text-center shadow-card sm:p-4 dark:border-zinc-800 dark:bg-surface-dark-alt">
+            <p className="text-xl font-bold tabular-nums sm:text-2xl">{t.value}</p>
+            <p className="mt-0.5 text-xs text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+              {t.label}
+              {'sub' in t && t.sub ? ` · ${t.sub}` : ''}
+            </p>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">Practice calendar</h2>
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            Export CSV
+          </button>
+        </div>
+        <PracticeHeatmap countsByDay={heatmapCounts} />
       </div>
 
       {accuracySeries.length > 0 && (

@@ -25,6 +25,7 @@ export async function retryExactSet(
       questionCount: session.questionCount,
       seed: session.seed,
       durationMs: session.durationMs,
+      latinAlphabet: session.latinAlphabet as 'letters' | 'digits' | 'greek' | 'shapes' | 'random' | undefined,
     },
     { keepSeed: true },
   );

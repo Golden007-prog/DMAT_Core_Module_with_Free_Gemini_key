@@ -74,8 +74,8 @@ export default function Landing() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <section className="grid items-center gap-10 py-8 lg:grid-cols-[1.2fr_1fr] lg:py-14">
-        <div>
+      <section className="grid items-center gap-8 py-6 sm:gap-10 sm:py-8 lg:grid-cols-[1.2fr_1fr] lg:py-14">
+        <div className="order-2 lg:order-1">
           <p className="text-sm font-semibold tracking-wide text-accent uppercase dark:text-accent-dark">
             Free dMAT Core Module practice
           </p>
@@ -102,7 +102,7 @@ export default function Landing() {
           </ul>
         </div>
 
-        <div className="rounded-card border border-zinc-200 bg-surface p-6 shadow-card-lift dark:border-zinc-800 dark:bg-surface-dark-alt">
+        <div className="order-1 rounded-card border border-zinc-200 bg-surface p-6 shadow-card-lift lg:order-2 dark:border-zinc-800 dark:bg-surface-dark-alt">
           <h2 className="text-lg font-bold">{mode === 'signin' ? 'Sign in' : 'Create your free account'}</h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Free forever — your practice history stays yours.

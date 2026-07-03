@@ -73,10 +73,13 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
   );
 }
 
+type ReviewFilter = 'all' | 'wrong' | 'flagged' | 'unanswered';
+
 export default function Review() {
   const { sessionId } = useParams();
   const active = useSession((s) => s.session);
   const [session, setSession] = useState<Session | null>(null);
+  const [filter, setFilter] = useState<ReviewFilter>('all');
 
   useEffect(() => {
     if (active && active.id === sessionId) {
@@ -100,9 +103,35 @@ export default function Review() {
     );
   }
 
+  const matches = (q: Session['questions'][number]): boolean => {
+    const answer = session.answers[q.id];
+    switch (filter) {
+      case 'wrong':
+        return answer !== undefined && !isAnswerCorrect(q, answer);
+      case 'flagged':
+        return session.flagged.includes(q.id);
+      case 'unanswered':
+        return answer === undefined;
+      default:
+        return true;
+    }
+  };
+  const visible = session.questions
+    .map((q, i) => ({ q, i }))
+    .filter(({ q }) => matches(q));
+
+  const counts: Record<ReviewFilter, number> = {
+    all: session.questions.length,
+    wrong: session.questions.filter(
+      (q) => session.answers[q.id] !== undefined && !isAnswerCorrect(q, session.answers[q.id]),
+    ).length,
+    flagged: session.flagged.length,
+    unanswered: session.questions.filter((q) => session.answers[q.id] === undefined).length,
+  };
+
   return (
     <section className="mx-auto max-w-4xl">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Review</h1>
         <Link
           to={`/results/${session.id}`}
@@ -111,11 +140,49 @@ export default function Review() {
           Back to results
         </Link>
       </div>
-      <div className="space-y-6">
-        {session.questions.map((q, i) => (
-          <ReviewQuestion key={q.id} question={q} session={session} index={i} />
+
+      <div className="mb-4 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter questions">
+        {(['all', 'wrong', 'flagged', 'unanswered'] as ReviewFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+              filter === f
+                ? 'bg-accent text-white dark:bg-accent-dark'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+            }`}
+          >
+            {f} ({counts[f]})
+          </button>
         ))}
+        <span className="ml-auto hidden gap-1 sm:flex">
+          {visible.map(({ i }) => (
+            <a
+              key={i}
+              href={`#review-q${i + 1}`}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 hover:bg-accent-tint hover:text-accent dark:bg-zinc-800 dark:text-zinc-400"
+            >
+              {i + 1}
+            </a>
+          ))}
+        </span>
       </div>
+
+      {visible.length === 0 ? (
+        <p className="py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          No {filter} questions in this session.
+        </p>
+      ) : (
+        <div className="space-y-6">
+          {visible.map(({ q, i }) => (
+            <div key={q.id} id={`review-q${i + 1}`}>
+              <ReviewQuestion question={q} session={session} index={i} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

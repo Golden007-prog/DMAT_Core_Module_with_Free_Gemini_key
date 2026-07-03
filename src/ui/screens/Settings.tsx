@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSettings, DEFAULT_MODEL_CHAIN } from '../../state/settingsStore';
+import { useThemeStore, type Theme } from '../../state/themeStore';
 import { listAvailableModels } from '../../ai/gemini';
 import { getUsageToday } from '../../ai/aiUsage';
 import { getStorage } from '../../storage/db';
@@ -18,9 +19,30 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+interface InstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+}
+
+let deferredInstall: InstallPromptEvent | null = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstall = e as InstallPromptEvent;
+  });
+}
+
 export default function Settings() {
   const settings = useSettings();
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const [canInstall, setCanInstall] = useState(deferredInstall !== null);
   const [keyTest, setKeyTest] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
+
+  useEffect(() => {
+    const onPrompt = () => setCanInstall(true);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
+  }, []);
   const [foundModels, setFoundModels] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -197,6 +219,120 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </div>
+      </Card>
+
+      <Card title="Practice experience">
+        <div className="mt-3 space-y-4">
+          <fieldset>
+            <legend className="text-sm font-medium">Theme</legend>
+            <div className="mt-1.5 flex gap-1.5">
+              {(['light', 'dark', 'system'] as Theme[]).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTheme(t)}
+                  aria-pressed={theme === t}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+                    theme === t
+                      ? 'bg-accent text-white dark:bg-accent-dark'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend className="text-sm font-medium">Question size</legend>
+            <div className="mt-1.5 flex gap-1.5">
+              {(['compact', 'comfortable', 'large'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => settings.set('questionScale', s)}
+                  aria-pressed={settings.questionScale === s}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+                    settings.questionScale === s
+                      ? 'bg-accent text-white dark:bg-accent-dark'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.soundEffects}
+              onChange={(e) => settings.set('soundEffects', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Sound effects
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (answer feedback, time warnings, promotions)
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.haptics}
+              onChange={(e) => settings.set('haptics', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Vibration on answers
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">(phones only)</span>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.autoAdvance}
+              onChange={(e) => settings.set('autoAdvance', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Auto-advance in practice
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (next question ~1 s after instant feedback)
+            </span>
+          </label>
+
+          <div>
+            <label className="text-sm font-medium" htmlFor="daily-goal">
+              Daily goal (questions, 0 = off)
+            </label>
+            <input
+              id="daily-goal"
+              type="number"
+              min={0}
+              max={200}
+              value={settings.dailyGoal}
+              onChange={(e) =>
+                settings.set('dailyGoal', Math.max(0, Math.min(200, Number(e.target.value) || 0)))
+              }
+              className="mt-1 block w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+
+          {canInstall && (
+            <button
+              type="button"
+              onClick={async () => {
+                await deferredInstall?.prompt();
+                deferredInstall = null;
+                setCanInstall(false);
+              }}
+              className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/15"
+            >
+              Install CoreForge as an app
+            </button>
+          )}
         </div>
       </Card>
 

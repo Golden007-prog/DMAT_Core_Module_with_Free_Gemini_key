@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { sessionStore, useSession } from '../../state/sessionStore';
 import { fullCoreStore } from '../../state/fullCoreStore';
 import { useHistory } from '../../state/historyStore';
 import { useSettings } from '../../state/settingsStore';
 import type { Difficulty, SubtestType } from '../../engine/types';
-import { formatPercent } from '../format';
+import { LATIN_ALPHABETS, ALPHABET_IDS } from '../../engine/latinSquares/alphabets';
+import { formatPercent, formatMs } from '../format';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const SUBTESTS: Array<{
@@ -40,7 +41,7 @@ export default function Home() {
   const settings = useSettings();
   const [subtest, setSubtest] = useState<SubtestType>('figures');
   const [difficulty, setDifficulty] = useState<Difficulty | 'mixed'>('medium');
-  const [count, setCount] = useState<5 | 10 | 20>(10);
+  const [count, setCount] = useState<3 | 5 | 10 | 20>(10);
   const [mode, setMode] = useState<'practice' | 'exam'>('practice');
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
   const hasRunningAttempt = useSession(
@@ -55,8 +56,23 @@ export default function Home() {
   const statsFor = (key: SubtestType) => {
     const sessions = history.sessions.filter((s) => s.subtest === key && s.score);
     if (sessions.length === 0) return null;
-    return { attempts: sessions.length, last: sessions[0].score!.accuracy };
+    return {
+      attempts: sessions.length,
+      last: sessions[0].score!.accuracy,
+      best: Math.max(...sessions.map((s) => s.score!.accuracy)),
+    };
   };
+
+  const runningSession = useSession((s) =>
+    s.session?.state === 'running' || s.session?.state === 'ready' ? s.session : null,
+  );
+
+  const todayAnswered = useMemo(() => {
+    const dayStart = new Date().setHours(0, 0, 0, 0);
+    return history.attempts.filter((a) => a.ts >= dayStart).length;
+  }, [history.attempts]);
+
+  const recent = useMemo(() => history.sessions.slice(0, 3), [history.sessions]);
 
   /** R1 restart semantics: discarding a live attempt needs a confirm. */
   const guarded = (action: () => void) => {
@@ -74,6 +90,7 @@ export default function Home() {
         questionCount: count,
         seed: 0, // store draws a fresh seed
         equationAskMode: settings.equationAskMode,
+        latinAlphabet: settings.latinAlphabet,
       });
       navigate('/run');
     });
@@ -87,10 +104,56 @@ export default function Home() {
 
   return (
     <section>
-      <h1 className="text-2xl font-bold">Practice the dMAT Core Module</h1>
-      <p className="mt-1 text-zinc-600 dark:text-zinc-300">
-        Unlimited, freshly generated tasks in the official formats — with real exam timing.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Practice the dMAT Core Module</h1>
+          <p className="mt-1 text-zinc-600 dark:text-zinc-300">
+            Unlimited, freshly generated tasks in the official formats — with real exam timing.
+          </p>
+        </div>
+        {settings.dailyGoal > 0 && (
+          <div
+            className="flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 dark:border-zinc-800"
+            title={`Daily goal: ${todayAnswered}/${settings.dailyGoal} questions today`}
+          >
+            <svg viewBox="0 0 36 36" className="h-8 w-8" aria-hidden="true">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="4" className="text-zinc-200 dark:text-zinc-800" />
+              <circle
+                cx="18" cy="18" r="15" fill="none"
+                stroke={todayAnswered >= settings.dailyGoal ? '#2E8B57' : '#A3195B'}
+                strokeWidth="4" strokeLinecap="round"
+                strokeDasharray={`${Math.min(1, todayAnswered / settings.dailyGoal) * 94.2} 94.2`}
+                transform="rotate(-90 18 18)"
+              />
+            </svg>
+            <span className="text-sm font-semibold tabular-nums">
+              {todayAnswered}/{settings.dailyGoal}
+            </span>
+            <span className="hidden text-xs text-zinc-500 sm:inline dark:text-zinc-400">today</span>
+          </div>
+        )}
+      </div>
+
+      {runningSession && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 border-warning/40 bg-warning/5 p-4">
+          <p className="text-sm">
+            <strong>Test in progress:</strong>{' '}
+            {runningSession.subtest === 'figures'
+              ? 'Figure Sequences'
+              : runningSession.subtest === 'equations'
+                ? 'Mathematical Equations'
+                : 'Latin Squares'}{' '}
+            · {Object.keys(runningSession.answers).length}/{runningSession.questionCount} answered
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/run')}
+            className="rounded-lg bg-warning px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Resume test →
+          </button>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3" role="radiogroup" aria-label="Choose a subtest">
         {SUBTESTS.map((s) => {
@@ -121,7 +184,7 @@ export default function Home() {
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{s.description}</p>
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                 {stats
-                  ? `${stats.attempts} attempt${stats.attempts === 1 ? '' : 's'} · last ${formatPercent(stats.last)}`
+                  ? `${stats.attempts} attempt${stats.attempts === 1 ? '' : 's'} · last ${formatPercent(stats.last)} · best ${formatPercent(stats.best)}`
                   : 'Not attempted yet'}
               </p>
             </button>
@@ -155,7 +218,7 @@ export default function Home() {
           <fieldset>
             <legend className="text-sm font-semibold">Set size</legend>
             <div className="mt-2 flex gap-1.5">
-              {([5, 10, 20] as const).map((n) => (
+              {([3, 5, 10, 20] as const).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -172,8 +235,38 @@ export default function Home() {
               ))}
             </div>
             <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Exam format: 20 tasks in 25:00 (75 s each).
+              Exam format: 20 tasks in 25:00 (75 s each). 3 = quick warm-up.
             </p>
+            {subtest === 'latin' && (
+              <div className="mt-3">
+                <p className="text-sm font-semibold">Symbols</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {[...ALPHABET_IDS, 'random' as const].map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => settings.set('latinAlphabet', id)}
+                      aria-pressed={settings.latinAlphabet === id}
+                      className={`rounded-lg px-2.5 py-1.5 text-sm font-medium ${
+                        settings.latinAlphabet === id
+                          ? 'bg-accent text-white dark:bg-accent-dark'
+                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+                      }`}
+                      title={
+                        id === 'random'
+                          ? 'A different symbol set each question'
+                          : Object.values(LATIN_ALPHABETS[id].glyphs).join(' ')
+                      }
+                    >
+                      {id === 'random' ? 'Mix' : `${LATIN_ALPHABETS[id].glyphs.A} ${LATIN_ALPHABETS[id].glyphs.B} ${LATIN_ALPHABETS[id].glyphs.C}`}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  The real exam uses letters — the logic is identical with any symbols.
+                </p>
+              </div>
+            )}
           </fieldset>
 
           <fieldset>
@@ -241,6 +334,41 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {recent.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+              Recent sessions
+            </h2>
+            <Link to="/history" className="text-sm font-semibold text-accent hover:underline dark:text-accent-dark">
+              All history →
+            </Link>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {recent.map((s) => (
+              <Link
+                key={s.id}
+                to={`/review/${s.id}`}
+                className="rounded-card border border-zinc-200 bg-surface p-3 text-sm shadow-card transition-all hover:-translate-y-px hover:shadow-card-lift dark:border-zinc-800 dark:bg-surface-dark-alt"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">
+                    {s.subtest === 'figures' ? 'Figures' : s.subtest === 'equations' ? 'Equations' : 'Latin Squares'}
+                  </span>
+                  <span className={`font-bold tabular-nums ${s.score && s.score.accuracy >= 0.85 ? 'text-success' : ''}`}>
+                    {s.score ? formatPercent(s.score.accuracy) : '—'}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                  {new Date(s.createdAt).toLocaleDateString()} · {s.questionCount} questions ·{' '}
+                  {s.score ? formatMs(s.score.totalTimeMs) : ''} · {s.mode}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={pendingAction !== null}

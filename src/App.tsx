@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useThemeStore, applyThemeClass } from './state/themeStore';
+import { useThemeStore, applyThemeClass, watchSystemTheme } from './state/themeStore';
 import { sessionStore, useSession } from './state/sessionStore';
 import { initTabLock } from './state/tabLock';
 import { useAuth, authBypassed } from './cloud/authStore';
@@ -8,6 +8,8 @@ import { cloudEnabled } from './cloud/supabaseClient';
 import { initCloudSync } from './cloud/sync';
 import Landing from './ui/screens/Landing';
 import TopBar from './ui/shell/TopBar';
+import BottomNav from './ui/shell/BottomNav';
+import RouteReset from './ui/shell/RouteReset';
 import Footer from './ui/shell/Footer';
 import ToastHost from './ui/components/Toast';
 import Home from './ui/screens/Home';
@@ -16,6 +18,7 @@ import Results from './ui/screens/Results';
 import Review from './ui/screens/Review';
 import Break from './ui/screens/Break';
 import History from './ui/screens/History';
+import Mistakes from './ui/screens/Mistakes';
 import Analytics from './ui/screens/Analytics';
 import Rankings from './ui/screens/Rankings';
 import Learn from './ui/screens/Learn';
@@ -46,7 +49,10 @@ export default function App() {
   const navigate = useNavigate();
   const [bootstrapped, setBootstrapped] = useState(false);
 
-  useEffect(() => applyThemeClass(theme), [theme]);
+  useEffect(() => {
+    applyThemeClass(theme);
+    return watchSystemTheme(() => applyThemeClass(useThemeStore.getState().theme));
+  }, [theme]);
 
   // refresh-resume (§11): a running session survives reloads with its clock intact
   useEffect(() => {
@@ -91,7 +97,11 @@ export default function App() {
           History won't persist in this browser mode (storage unavailable). Practice still works fully.
         </div>
       )}
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 sm:px-6">
+      <RouteReset mainId="main-content" />
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 pb-24 outline-none sm:px-6 sm:pb-6"
+      >
         {bootstrapped && (
           <Routes>
             <Route path="/welcome" element={<Landing />} />
@@ -101,6 +111,7 @@ export default function App() {
             <Route path="/review/:sessionId" element={<AuthGate><Review /></AuthGate>} />
             <Route path="/break" element={<AuthGate><Break /></AuthGate>} />
             <Route path="/history" element={<AuthGate><History /></AuthGate>} />
+            <Route path="/mistakes" element={<AuthGate><Mistakes /></AuthGate>} />
             <Route path="/analytics" element={<AuthGate><Analytics /></AuthGate>} />
             <Route path="/rankings" element={<AuthGate><Rankings /></AuthGate>} />
             <Route path="/learn" element={<AuthGate><Learn /></AuthGate>} />
@@ -110,6 +121,7 @@ export default function App() {
         )}
       </main>
       <Footer />
+      <BottomNav />
       <ToastHost />
     </div>
   );

@@ -2,6 +2,8 @@ import type { Session } from '../engine/types';
 import { computeSessionPoints } from '../state/points';
 import { supabase } from './supabaseClient';
 import { useAuth } from './authStore';
+import { toast } from '../ui/components/Toast';
+import { fxPromotion } from '../ui/feedbackFx';
 
 /* ------------------------------- ISO weeks -------------------------------- */
 
@@ -92,6 +94,14 @@ export async function pushWeeklyScore(): Promise<void> {
     sessionCount++;
   }
 
+  // league promotion detection: compare against the stored row before upsert
+  const { data: prev } = await supabase
+    .from('weekly_scores')
+    .select('points')
+    .eq('user_id', user.id)
+    .eq('week', week)
+    .maybeSingle();
+
   await supabase.from('weekly_scores').upsert({
     user_id: user.id,
     week,
@@ -101,15 +111,29 @@ export async function pushWeeklyScore(): Promise<void> {
     avatar_url: user.avatarUrl,
     updated_at: new Date().toISOString(),
   });
+
+  const before = leagueFor((prev?.points as number) ?? 0);
+  const after = leagueFor(points);
+  if (after.minPoints > before.minPoints) {
+    fxPromotion();
+    toast(`Promoted to ${after.name} league! 🏆`, 'success');
+  }
 }
 
-/** Top rows for the current week plus the signed-in user's own row/rank. */
-export async function fetchWeeklyLeaderboard(limit = 100): Promise<{
+/** ISO week key shifted by whole weeks (e.g. -1 = last week). */
+export function shiftedWeekKey(offsetWeeks: number, now = new Date()): string {
+  return weekKey(new Date(now.getTime() + offsetWeeks * 7 * 86_400_000));
+}
+
+/** Top rows for a week plus the signed-in user's own row/rank. */
+export async function fetchWeeklyLeaderboard(
+  limit = 100,
+  week = weekKey(),
+): Promise<{
   rows: LeaderboardRow[];
   me: LeaderboardRow | null;
   week: string;
 }> {
-  const week = weekKey();
   const user = useAuth.getState().user;
   if (!supabase) return { rows: [], me: null, week };
 

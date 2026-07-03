@@ -9,6 +9,7 @@ export interface SessionConfig {
   seed: number;
   durationMs?: number;
   equationAskMode?: 'choice' | 'entry';
+  latinAlphabet?: 'letters' | 'digits' | 'greek' | 'shapes' | 'random';
 }
 
 /** Official pacing: 75 s per task (20 tasks in 25:00). */
@@ -39,6 +40,7 @@ export function createSession(config: SessionConfig): Session {
     questionCount: config.questionCount,
     durationMs: config.durationMs ?? config.questionCount * MS_PER_TASK,
     seed: config.seed,
+    latinAlphabet: config.latinAlphabet,
     questions: [],
     answers: {},
     answerTimesMs: {},

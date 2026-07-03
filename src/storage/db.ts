@@ -30,6 +30,7 @@ export interface StorageAPI {
   saveSession(s: Session): Promise<void>;
   getSession(id: string): Promise<Session | undefined>;
   listSessions(): Promise<Session[]>;
+  deleteSession(id: string): Promise<void>;
   findRunningSessions(): Promise<Session[]>;
   addAttempts(rows: AttemptRow[]): Promise<void>;
   allAttempts(): Promise<AttemptRow[]>;
@@ -78,6 +79,10 @@ export class DexieStorage implements StorageAPI {
   }
   async listSessions(): Promise<Session[]> {
     return this.db.sessions.orderBy('createdAt').reverse().toArray();
+  }
+  async deleteSession(id: string): Promise<void> {
+    await this.db.sessions.delete(id);
+    await this.db.attempts.where('sessionId').equals(id).delete();
   }
   async findRunningSessions(): Promise<Session[]> {
     return this.db.sessions.where('state').equals('running').toArray();
@@ -131,6 +136,12 @@ export class MemoryStorage implements StorageAPI {
   }
   async listSessions(): Promise<Session[]> {
     return [...this.sessions.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  async deleteSession(id: string): Promise<void> {
+    this.sessions.delete(id);
+    for (const [key, row] of this.attempts) {
+      if (row.sessionId === id) this.attempts.delete(key);
+    }
   }
   async findRunningSessions(): Promise<Session[]> {
     return [...this.sessions.values()].filter((s) => s.state === 'running');

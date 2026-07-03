@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   fetchWeeklyLeaderboard,
   msUntilWeeklyReset,
   nextLeague,
+  shiftedWeekKey,
+  weekKey,
   LEAGUES,
   type LeaderboardRow,
 } from '../../cloud/rankings';
-import { POINTS_PER_CORRECT, MIXED_SET_MULTIPLIER } from '../../state/points';
+import { POINTS_PER_CORRECT, MIXED_SET_MULTIPLIER, computeSessionPoints } from '../../state/points';
+import { computeAchievements } from '../../state/achievements';
+import { useHistory } from '../../state/historyStore';
 import { cloudEnabled } from '../../cloud/supabaseClient';
 
 function LeagueBadge({ row }: { row: LeaderboardRow }) {
@@ -43,10 +47,19 @@ export default function Rankings() {
   const [me, setMe] = useState<LeaderboardRow | null>(null);
   const [week, setWeek] = useState('');
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'this' | 'last'>('this');
+  const history = useHistory();
+
+  useEffect(() => {
+    void history.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchWeeklyLeaderboard().then((r) => {
+    setLoading(true);
+    const target = tab === 'this' ? weekKey() : shiftedWeekKey(-1);
+    void fetchWeeklyLeaderboard(100, target).then((r) => {
       if (cancelled) return;
       setRows(r.rows);
       setMe(r.me);
@@ -56,9 +69,27 @@ export default function Rankings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tab]);
 
   const upgrade = me ? nextLeague(me.points) : LEAGUES[1];
+
+  /** local per-week point history (last 8 weeks) — works offline */
+  const myWeeks = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (let i = 7; i >= 0; i--) buckets.set(shiftedWeekKey(-i), 0);
+    for (const s of history.sessions) {
+      if (!s.score) continue;
+      const wk = weekKey(new Date(s.createdAt));
+      if (buckets.has(wk)) buckets.set(wk, (buckets.get(wk) ?? 0) + computeSessionPoints(s).total);
+    }
+    return [...buckets.entries()];
+  }, [history.sessions]);
+  const myWeeksMax = Math.max(1, ...myWeeks.map(([, p]) => p));
+
+  const achievements = useMemo(
+    () => computeAchievements(history.sessions, history.attempts),
+    [history.sessions, history.attempts],
+  );
 
   return (
     <section className="mx-auto max-w-3xl">
@@ -67,6 +98,29 @@ export default function Rankings() {
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {week ? `${week} · ` : ''}resets in {resetCountdown()} (Mon 00:00 UTC)
         </p>
+      </div>
+
+      <div className="mt-3 flex gap-1.5">
+        {(
+          [
+            ['this', 'This week'],
+            ['last', 'Last week'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            aria-pressed={tab === value}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+              tab === value
+                ? 'bg-accent text-white dark:bg-accent-dark'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* your card */}
@@ -176,6 +230,52 @@ export default function Rankings() {
             ))}
           </ol>
         )}
+      </div>
+      {/* my 8-week trend (local, offline-friendly) */}
+      {myWeeks.some(([, p]) => p > 0) && (
+        <div className="mt-3 rounded-card border border-zinc-200 bg-surface p-4 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">Your last 8 weeks</h2>
+          <div className="mt-2 flex items-end gap-1.5" role="img" aria-label="Weekly points, last 8 weeks">
+            {myWeeks.map(([wk, p]) => (
+              <div key={wk} className="flex flex-1 flex-col items-center gap-1" title={`${wk}: ${p} pts`}>
+                <span className="text-[10px] tabular-nums text-zinc-400">{p > 0 ? p : ''}</span>
+                <div
+                  className="w-full rounded-t bg-accent/80 dark:bg-accent-dark/80"
+                  style={{ height: `${Math.max(2, (p / myWeeksMax) * 56)}px` }}
+                />
+                <span className="text-[10px] text-zinc-400">{wk.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* achievements */}
+      <div className="mt-3 rounded-card border border-zinc-200 bg-surface p-4 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+        <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+          Achievements · {achievements.filter((a) => a.earned).length}/{achievements.length}
+        </h2>
+        <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {achievements.map((a) => (
+            <li
+              key={a.id}
+              className={`rounded-lg border p-2.5 text-center ${
+                a.earned
+                  ? 'border-accent/40 bg-accent-tint/40 dark:border-accent-dark/40 dark:bg-accent/10'
+                  : 'border-zinc-200 opacity-55 dark:border-zinc-800'
+              }`}
+              title={a.description}
+            >
+              <span className="text-xl" aria-hidden="true">
+                {a.icon}
+              </span>
+              <p className="mt-1 text-xs font-semibold">{a.name}</p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                {a.earned ? 'Earned' : (a.progress ?? a.description)}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

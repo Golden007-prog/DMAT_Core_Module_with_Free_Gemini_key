@@ -1,5 +1,6 @@
 import type { Difficulty, Question, SubtestType, ValidationResult } from './types';
 import { createPrng, deriveSeed } from './prng';
+import { ALPHABET_IDS, type LatinAlphabetChoice } from './latinSquares/alphabets';
 import { generateFigureQuestion } from './figureSequences/generator';
 import { validateFigureQuestion } from './figureSequences/validate';
 import { generateEquationQuestion } from './equations/generator';
@@ -13,6 +14,8 @@ export interface GenerateSetConfig {
   count: number;
   seed: number;
   equationAskMode?: 'choice' | 'entry';
+  /** latin display alphabet; 'random' varies per question, reproducibly */
+  latinAlphabet?: LatinAlphabetChoice;
 }
 
 /** mixed sets ramp easy → medium → hard, mirroring a sensible practice curve */
@@ -49,9 +52,17 @@ export function generateQuestionAt(cfg: GenerateSetConfig, index: number): Quest
     case 'equations':
       question = generateEquationQuestion(difficulty, prng, cfg.equationAskMode ?? 'choice');
       break;
-    case 'latin':
+    case 'latin': {
       question = generateLatinQuestion(difficulty, prng);
+      // display alphabet from a separate derived stream so the puzzle content
+      // itself stays identical across alphabet settings (seed-reproducible)
+      const choice = cfg.latinAlphabet ?? 'letters';
+      question.alphabet =
+        choice === 'random'
+          ? ALPHABET_IDS[createPrng(deriveSeed(cfg.seed, index) ^ 0xa1fa).int(0, ALPHABET_IDS.length - 1)]
+          : choice;
       break;
+    }
   }
   const check = validateQuestion(question);
   if (!check.ok) {
