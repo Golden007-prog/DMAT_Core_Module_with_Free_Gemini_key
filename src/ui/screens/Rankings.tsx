@@ -65,7 +65,7 @@ export default function Rankings() {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-bold">Weekly Rankings</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {week} · resets in {resetCountdown()} (Mon 00:00 UTC)
+          {week ? `${week} · ` : ''}resets in {resetCountdown()} (Mon 00:00 UTC)
         </p>
       </div>
 
