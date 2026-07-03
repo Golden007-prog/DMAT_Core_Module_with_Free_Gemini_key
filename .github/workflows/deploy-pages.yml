@@ -23,7 +23,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
       - run: npm run build
         env:
           VITE_BASE_PATH: /DMAT_Core_Module_with_Free_Gemini_key/

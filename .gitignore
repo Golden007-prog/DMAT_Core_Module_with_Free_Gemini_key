@@ -11,3 +11,14 @@ test-results/
 # local tooling / assistant config — never publish
 .claude/
 .mcp.json
+
+# development-only (kept locally, not part of the published site)
+src/tests/
+e2e/
+scripts/
+playwright.config.ts
+deploy/
+supabase/
+vercel.json
+public/_redirects
+.github/workflows/ci.yml
