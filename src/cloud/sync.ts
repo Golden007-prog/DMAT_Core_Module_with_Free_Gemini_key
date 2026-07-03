@@ -6,6 +6,7 @@ import { useSettings } from '../state/settingsStore';
 import { useHistory } from '../state/historyStore';
 import { supabase } from './supabaseClient';
 import { useAuth } from './authStore';
+import { pushWeeklyScore } from './rankings';
 import { toast } from '../ui/components/Toast';
 
 /** Everything a signed-in user does is mirrored to their Supabase rows:
@@ -153,13 +154,16 @@ export function initCloudSync(): void {
     if (!state.user) lastUserId = null;
   });
 
-  // finished session → push (fire-and-forget, deduped by session id)
+  // finished session → push, then refresh this week's leaderboard score
+  // (points are recomputed from the cloud sessions, so this is idempotent)
   let lastPushedId: string | null = null;
   sessionStore.subscribe((state) => {
     const s = state.session;
     if (s && (s.state === 'finished' || s.state === 'reviewed') && s.id !== lastPushedId) {
       lastPushedId = s.id;
-      void pushSession(s).catch(() => {});
+      void pushSession(s)
+        .then(() => pushWeeklyScore())
+        .catch(() => {});
     }
   });
 

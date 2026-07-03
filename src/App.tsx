@@ -17,6 +17,7 @@ import Review from './ui/screens/Review';
 import Break from './ui/screens/Break';
 import History from './ui/screens/History';
 import Analytics from './ui/screens/Analytics';
+import Rankings from './ui/screens/Rankings';
 import Learn from './ui/screens/Learn';
 import Settings from './ui/screens/Settings';
 
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="/break" element={<AuthGate><Break /></AuthGate>} />
             <Route path="/history" element={<AuthGate><History /></AuthGate>} />
             <Route path="/analytics" element={<AuthGate><Analytics /></AuthGate>} />
+            <Route path="/rankings" element={<AuthGate><Rankings /></AuthGate>} />
             <Route path="/learn" element={<AuthGate><Learn /></AuthGate>} />
             <Route path="/settings" element={<AuthGate><Settings /></AuthGate>} />
             <Route path="*" element={<Navigate to="/" replace />} />

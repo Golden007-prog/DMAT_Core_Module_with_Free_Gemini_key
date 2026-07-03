@@ -5,11 +5,12 @@ import { useAuth, authBypassed } from '../../cloud/authStore';
 import { cloudEnabled } from '../../cloud/supabaseClient';
 
 const navItems = [
-  { to: '/', label: 'Practice' },
-  { to: '/history', label: 'History' },
-  { to: '/analytics', label: 'Analytics' },
-  { to: '/learn', label: 'Learn' },
-  { to: '/settings', label: 'Settings' },
+  { to: '/', label: 'Practice', short: 'Practice' },
+  { to: '/rankings', label: 'Rankings', short: 'Ranks' },
+  { to: '/history', label: 'History', short: 'History' },
+  { to: '/analytics', label: 'Analytics', short: 'Stats' },
+  { to: '/learn', label: 'Learn', short: 'Learn' },
+  { to: '/settings', label: 'Settings', short: 'Settings' },
 ];
 
 export default function TopBar() {
@@ -61,7 +62,8 @@ export default function TopBar() {
                   }`
                 }
               >
-                {item.label}
+                <span className="sm:hidden">{item.short}</span>
+                <span className="hidden sm:inline">{item.label}</span>
               </NavLink>
             ))}
           </nav>

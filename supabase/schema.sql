@@ -200,3 +200,41 @@ create policy "question_pool_insert_own" on public.question_pool
   with check ((select auth.uid()) = created_by);
 
 grant select, insert on public.question_pool to authenticated;
+
+-- ============================ weekly_scores ===========================
+-- Weekly leaderboard: one row per (user, ISO week). Readable by every
+-- signed-in user; writable only by the owner. Name/avatar are denormalized
+-- snapshots so profiles stay private.
+create table if not exists public.weekly_scores (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  week text not null,
+  points int not null default 0 check (points >= 0),
+  sessions int not null default 0 check (sessions >= 0),
+  display_name text,
+  avatar_url text,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, week)
+);
+
+create index if not exists weekly_scores_week_points_idx
+  on public.weekly_scores (week, points desc);
+
+alter table public.weekly_scores enable row level security;
+
+drop policy if exists "weekly_scores_select_all" on public.weekly_scores;
+create policy "weekly_scores_select_all" on public.weekly_scores
+  for select to authenticated
+  using (true);
+
+drop policy if exists "weekly_scores_insert_own" on public.weekly_scores;
+create policy "weekly_scores_insert_own" on public.weekly_scores
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "weekly_scores_update_own" on public.weekly_scores;
+create policy "weekly_scores_update_own" on public.weekly_scores
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+grant select, insert, update on public.weekly_scores to authenticated;

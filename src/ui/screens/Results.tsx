@@ -6,6 +6,8 @@ import { getStorage } from '../../storage/db';
 import type { Difficulty, Session } from '../../engine/types';
 import { formatMs, formatPercent } from '../format';
 import { ruleTagLabel } from '../ruleTagLabels';
+import { computeSessionPoints } from '../../state/points';
+import { useAuth } from '../../cloud/authStore';
 
 function ScoreRing({ accuracy }: { accuracy: number }) {
   const r = 52;
@@ -33,6 +35,19 @@ function ScoreRing({ accuracy }: { accuracy: number }) {
 }
 
 const DIFFS: Difficulty[] = ['easy', 'medium', 'hard'];
+
+function PointsRankLink({ hasPoints }: { hasPoints: boolean }) {
+  const user = useAuth((s) => s.user);
+  if (!hasPoints || !user) return null;
+  return (
+    <Link
+      to="/rankings"
+      className="mt-1 text-xs font-semibold text-accent hover:underline dark:text-accent-dark"
+    >
+      See your weekly rank →
+    </Link>
+  );
+}
 
 export default function Results() {
   const { sessionId } = useParams();
@@ -73,6 +88,7 @@ export default function Results() {
   }
 
   const score = session.score;
+  const points = computeSessionPoints(session);
   const weakest = Object.entries(score.perRuleTag)
     .filter(([, v]) => v.total >= 2)
     .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)
@@ -88,6 +104,15 @@ export default function Results() {
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             {score.correct} correct · {score.wrong - score.unanswered} wrong · {score.unanswered} unanswered
           </p>
+          {points.total > 0 && (
+            <p className="mt-2 rounded-full bg-accent-tint px-3 py-1 text-sm font-semibold text-accent dark:bg-accent/15 dark:text-accent-dark">
+              +{points.total} pts
+              {points.timeBonus > 0 && (
+                <span className="font-normal"> ({points.base} + {points.timeBonus} time bonus)</span>
+              )}
+            </p>
+          )}
+          <PointsRankLink hasPoints={points.total > 0} />
         </div>
 
         <div className="space-y-4">
