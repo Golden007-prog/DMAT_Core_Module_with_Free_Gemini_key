@@ -1,4 +1,4 @@
-# dMAT Practice - Free Core Module Test Simulator (Figure Sequences · Equations · Latin Squares)
+# DMAT Practice - Free Core Module Test Simulator (Figure Sequences · Equations · Latin Squares)
 
 **Practice the dMAT (digitaler Mastertest) Core Module for free, with unlimited questions and real
 exam timing.** CoreForge is a free dMAT practice platform covering all three Core Module subtests -
