@@ -60,15 +60,19 @@ describe('generateEquationQuestion', () => {
     expect(q1.target?.options).toEqual(q2.target?.options);
   });
 
-  it.each(DIFFS)('%s: 1000 seeds → all pass the validator', (diff) => {
-    for (let seed = 1; seed <= 1000; seed++) {
-      const q = generateEquationQuestion(diff, createPrng(seed), 'choice');
-      const res = validateEquationQuestion(q);
-      if (!res.ok) {
-        throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}\n${q.equationsDisplay.join('\n')}`);
+  it.each(DIFFS)(
+    '%s: 1000 seeds → all pass the validator',
+    (diff) => {
+      for (let seed = 1; seed <= 1000; seed++) {
+        const q = generateEquationQuestion(diff, createPrng(seed), 'choice');
+        const res = validateEquationQuestion(q);
+        if (!res.ok) {
+          throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}\n${q.equationsDisplay.join('\n')}`);
+        }
       }
-    }
-  });
+    },
+    120_000, // heavy property suite — slow CI runners need headroom
+  );
 
   it.each(DIFFS)('%s: structure matches the difficulty table', (diff) => {
     for (let seed = 1; seed <= 100; seed++) {

@@ -85,15 +85,19 @@ describe('generateLatinQuestion', () => {
     expect(q1.solutionLetter).toBe(q2.solutionLetter);
   });
 
-  it.each(DIFFS)('%s: 1000 seeds → all pass the validator', (diff) => {
-    for (let seed = 1; seed <= 1000; seed++) {
-      const q = generateLatinQuestion(diff, createPrng(seed));
-      const res = validateLatinQuestion(q);
-      if (!res.ok) {
-        throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}`);
+  it.each(DIFFS)(
+    '%s: 1000 seeds → all pass the validator',
+    (diff) => {
+      for (let seed = 1; seed <= 1000; seed++) {
+        const q = generateLatinQuestion(diff, createPrng(seed));
+        const res = validateLatinQuestion(q);
+        if (!res.ok) {
+          throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}`);
+        }
       }
-    }
-  });
+    },
+    120_000, // heavy property suite — slow CI runners need headroom
+  );
 
   it.each(DIFFS)('%s: clue count and inference depth stay in band', (diff) => {
     const band = LATIN_BANDS[diff];
@@ -106,7 +110,7 @@ describe('generateLatinQuestion', () => {
       expect(q.inferenceDepth, `seed ${seed} depth`).toBeLessThanOrEqual(band.maxDepth);
       expect(q.explanationSteps).toHaveLength(q.inferenceDepth);
     }
-  });
+  }, 60_000);
 
   it('the "?" cell is empty and inside the grid', () => {
     for (let seed = 1; seed <= 100; seed++) {

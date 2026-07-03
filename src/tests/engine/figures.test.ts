@@ -116,15 +116,19 @@ describe('generateFigureQuestion', () => {
     expect(q1.image2).toEqual(q2.image2);
   });
 
-  it.each(DIFFS)('%s: 1000 seeds → all pass the validator', (diff) => {
-    for (let seed = 1; seed <= 1000; seed++) {
-      const q = generateFigureQuestion(diff, createPrng(seed));
-      const res = validateFigureQuestion(q);
-      if (!res.ok) {
-        throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}`);
+  it.each(DIFFS)(
+    '%s: 1000 seeds → all pass the validator',
+    (diff) => {
+      for (let seed = 1; seed <= 1000; seed++) {
+        const q = generateFigureQuestion(diff, createPrng(seed));
+        const res = validateFigureQuestion(q);
+        if (!res.ok) {
+          throw new Error(`seed ${seed} (${diff}) failed: ${res.reasons.join('; ')}`);
+        }
       }
-    }
-  });
+    },
+    120_000, // heavy property suite — slow CI runners need headroom
+  );
 
   it.each(DIFFS)('%s: symbol count matches the difficulty table', (diff) => {
     const expected: Record<Difficulty, [number, number]> = {
