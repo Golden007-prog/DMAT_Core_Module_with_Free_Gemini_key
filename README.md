@@ -36,7 +36,7 @@ dMAT preparation free · g.a.s.t. Mastertest practice · dMAT test simulator · 
 | **Progress analytics** | Accuracy trends, weakness detection by rule type (e.g. "x+1 acceleration", "hidden singles"), pacing vs the 75 s budget, streaks, and concrete drill suggestions |
 | **Retry tools** | Replay the exact same set (seeded), or auto-build a set from your past mistakes |
 | **Works offline** | Installable PWA; the full generator runs in your browser — no server, no account required |
-| **Optional Google sign-in** | Sync history, settings, and generated sets across devices via Supabase ([setup guide](docs/GOOGLE_LOGIN_SETUP.md)) |
+| **Optional Google sign-in** | Sync history, settings, and generated sets across devices via Supabase |
 | **Optional free AI tutor** | Bring your own free Gemini API key for AI-generated equation variety and per-mistake tutor explanations — [get a free key](https://aistudio.google.com/apikey) |
 
 ![Figure Sequences task — four matrices with answer options for the 5th and 6th frame](docs/screenshots/figure-sequences.png)
@@ -77,7 +77,9 @@ validation firewall (`src/ai/`), React 19 + TypeScript + Tailwind v4 UI (`src/ui
 The app is fully usable anonymously and offline. Signing in with Google adds cross-device sync of
 your history, settings, and generated sets, backed by Supabase with row-level security (each user
 can only ever read/write their own rows — see [`supabase/schema.sql`](supabase/schema.sql)).
-To wire up your own instance, follow [docs/GOOGLE_LOGIN_SETUP.md](docs/GOOGLE_LOGIN_SETUP.md).
+To wire up your own instance: create a Google OAuth client (redirect URI
+`https://<your-project>.supabase.co/auth/v1/callback`), enable the Google provider in Supabase
+Auth, and set your site URL in Auth → URL Configuration.
 
 ## FAQ
 
