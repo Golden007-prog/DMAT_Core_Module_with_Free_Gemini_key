@@ -1,6 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useThemeStore } from '../../state/themeStore';
 import { useSession } from '../../state/sessionStore';
+import { useAuth, authBypassed } from '../../cloud/authStore';
+import { cloudEnabled } from '../../cloud/supabaseClient';
 
 const navItems = [
   { to: '/', label: 'Practice' },
@@ -13,11 +15,14 @@ const navItems = [
 export default function TopBar() {
   const { theme, toggle } = useThemeStore();
   const location = useLocation();
+  const user = useAuth((s) => s.user);
   const examRunning = useSession(
     (s) => s.session?.mode === 'exam' && s.session.state === 'running',
   );
   // Distraction-free exam: nav is hidden while an exam is being taken (§8).
+  // Signed-out visitors only see the landing page — no nav to show.
   const inRunner = location.pathname === '/run' && examRunning;
+  const signedOut = cloudEnabled && !user && !authBypassed();
 
   return (
     <header className="border-b border-zinc-200 bg-surface dark:border-zinc-800 dark:bg-surface-dark-alt">
@@ -42,7 +47,7 @@ export default function TopBar() {
           </span>
         </NavLink>
 
-        {!inRunner && (
+        {!inRunner && !signedOut && (
           <nav aria-label="Main" className="ml-auto flex items-center gap-0.5 overflow-x-auto sm:gap-1">
             {navItems.map((item) => (
               <NavLink
@@ -62,10 +67,26 @@ export default function TopBar() {
           </nav>
         )}
 
+        {!inRunner && user && (
+          <NavLink
+            to="/settings"
+            className="ml-1 flex items-center"
+            title={`${user.displayName ?? user.email ?? 'Account'} — account & sync`}
+            aria-label="Account settings"
+          >
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+                {(user.displayName ?? user.email ?? '?')[0]?.toUpperCase()}
+              </span>
+            )}
+          </NavLink>
+        )}
         <button
           type="button"
           onClick={toggle}
-          className={`${inRunner ? 'ml-auto' : ''} rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800`}
+          className={`${inRunner || signedOut ? 'ml-auto' : ''} rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800`}
           aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
         >

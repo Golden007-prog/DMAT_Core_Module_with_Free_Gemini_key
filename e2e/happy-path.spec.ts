@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { startPractice, answerAllAndSubmit } from './helpers';
 
 const SUBTESTS = ['Figure Sequences', 'Mathematical Equations', 'Latin Squares'] as const;

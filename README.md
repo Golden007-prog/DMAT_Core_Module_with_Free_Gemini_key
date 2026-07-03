@@ -5,7 +5,7 @@ exam timing.** CoreForge is a free, open-source dMAT practice platform covering 
 Module subtests — **Figure Sequences (Figurenreihen), Mathematical Equations, and Latin Squares** —
 in the official format: 20 tasks in 25 minutes, single choice, no note-taking.
 
-### ▶ [**Start practicing now — no signup, no install**](https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/)
+### ▶ [**Start practicing now — free account (Google or email), nothing to install**](https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/)
 
 [![Live](https://img.shields.io/badge/Live-github.io-A3195B)](https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -35,8 +35,8 @@ dMAT preparation free · g.a.s.t. Mastertest practice · dMAT test simulator · 
 | **Instant feedback + explanations** | Step-by-step deterministic solutions, rule breakdowns, and an animated sequence replay for figure tasks |
 | **Progress analytics** | Accuracy trends, weakness detection by rule type (e.g. "x+1 acceleration", "hidden singles"), pacing vs the 75 s budget, streaks, and concrete drill suggestions |
 | **Retry tools** | Replay the exact same set (seeded), or auto-build a set from your past mistakes |
-| **Works offline** | Installable PWA; the full generator runs in your browser — no server, no account required |
-| **Optional Google sign-in** | Sync history, settings, and generated sets across devices via Supabase |
+| **Works offline** | Installable PWA; the full generator runs in your browser — after signing in once, practice works without a connection |
+| **Google or email sign-in** | Your history, settings, and generated sets sync across devices via Supabase |
 | **Optional free AI tutor** | Bring your own free Gemini API key for AI-generated equation variety and per-mistake tutor explanations — [get a free key](https://aistudio.google.com/apikey) |
 
 ![Figure Sequences task — four matrices with answer options for the 5th and 6th frame](docs/screenshots/figure-sequences.png)
@@ -74,9 +74,10 @@ validation firewall (`src/ai/`), React 19 + TypeScript + Tailwind v4 UI (`src/ui
 
 ## Cloud sync & Google login (optional)
 
-The app is fully usable anonymously and offline. Signing in with Google adds cross-device sync of
-your history, settings, and generated sets, backed by Supabase with row-level security (each user
-can only ever read/write their own rows — see [`supabase/schema.sql`](supabase/schema.sql)).
+Signing in (Google or email) unlocks the app and syncs your history, settings, and generated sets
+across devices, backed by Supabase with row-level security (each user can only ever read/write
+their own rows — see [`supabase/schema.sql`](supabase/schema.sql)). Once signed in, practice keeps
+working offline.
 To wire up your own instance: create a Google OAuth client (redirect URI
 `https://<your-project>.supabase.co/auth/v1/callback`), enable the Google provider in Supabase
 Auth, and set your site URL in Auth → URL Configuration.
@@ -90,8 +91,9 @@ official information and the original example exercises, visit [d-mat.de](https:
 0–200 score that cannot be derived from practice accuracy. The app uses an honest ≥85% accuracy
 heuristic for readiness and says so in the UI.
 
-**Is it really free?** Yes — MIT-licensed, static hosting, no accounts required, no ads, no
-tracking. The optional AI features use *your own* free-tier Gemini key.
+**Is it really free?** Yes — MIT-licensed, static hosting, no ads, no tracking. A free account
+(Google or email) keeps your progress synced. The optional AI features use *your own* free-tier
+Gemini key.
 
 **Can I practice on my phone?** Yes — the whole exam flow is responsive and keyboard/touch friendly,
 and the app installs as a PWA for offline use.

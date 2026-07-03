@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { startPractice, answerAllAndSubmit } from './helpers';
 
 test('mobile viewport: full figures run is usable end to end', async ({ page }) => {
