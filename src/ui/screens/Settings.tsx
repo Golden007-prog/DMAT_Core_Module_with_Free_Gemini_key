@@ -122,9 +122,10 @@ export default function Settings() {
           <p className="mt-2 text-sm text-error">Key rejected — double-check it in AI Studio.</p>
         )}
         <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-          The key is stored only in this browser's localStorage and sent only to
-          generativelanguage.googleapis.com. Honest note: Google may use free-tier prompts to improve its
-          products — don't paste anything private into AI features.
+          The key is stored in this browser and synced privately to your signed-in account (your own
+          access-controlled row), so you enter it once across all devices. It is sent only to
+          generativelanguage.googleapis.com. Honest note: Google may use free-tier prompts to improve
+          its products — don't paste anything private into AI features.
         </p>
 
         <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
@@ -134,9 +135,11 @@ export default function Settings() {
               checked={settings.aiEquationsEnabled}
               onChange={(e) => settings.set('aiEquationsEnabled', e.target.checked)}
               className="h-4 w-4 accent-[#A3195B]"
-              disabled={!settings.geminiKey}
             />
-            AI-generated equation sets (single-difficulty sets; every system is re-validated locally)
+            <span>
+              AI equation sets — generated fresh with your key (and shared to the community pool),
+              or loaded from the pool when you have no key. Every system is re-validated locally.
+            </span>
           </label>
 
           <label className="mt-3 block text-sm font-medium" htmlFor="model-chain">

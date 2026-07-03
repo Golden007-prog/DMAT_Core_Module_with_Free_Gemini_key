@@ -168,3 +168,35 @@ grant select, insert, update, delete on public.profiles to authenticated;
 grant select, insert, update, delete on public.sessions to authenticated;
 grant select, insert, update, delete on public.user_settings to authenticated;
 grant select, insert, update, delete on public.generated_sets to authenticated;
+
+-- =========================== question_pool ============================
+-- Shared pool of AI-generated, locally re-validated questions. Content-hash
+-- unique: the same question can never be stored twice. Readable by every
+-- signed-in user; append-only (no update/delete policies).
+create table if not exists public.question_pool (
+  id uuid primary key default gen_random_uuid(),
+  subtest text not null,
+  difficulty text not null,
+  content_hash text not null unique,
+  question jsonb not null,
+  source text not null default 'gemini+validated',
+  created_by uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists question_pool_lookup_idx
+  on public.question_pool (subtest, difficulty, created_at desc);
+
+alter table public.question_pool enable row level security;
+
+drop policy if exists "question_pool_select_all" on public.question_pool;
+create policy "question_pool_select_all" on public.question_pool
+  for select to authenticated
+  using (true);
+
+drop policy if exists "question_pool_insert_own" on public.question_pool;
+create policy "question_pool_insert_own" on public.question_pool
+  for insert to authenticated
+  with check ((select auth.uid()) = created_by);
+
+grant select, insert on public.question_pool to authenticated;

@@ -42,7 +42,8 @@ export default function AccountCard() {
           </div>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">
             Finished sessions, settings, and generated sets sync to your account automatically —
-            your history follows you across devices. Your Gemini key never leaves this device.
+            your history and your Gemini key follow you across devices (stored in your private,
+            access-controlled row; enter it once and forget it).
           </p>
           <div className="mt-4 flex gap-2">
             <button

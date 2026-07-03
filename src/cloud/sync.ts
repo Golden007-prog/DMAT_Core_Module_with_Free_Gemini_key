@@ -9,9 +9,10 @@ import { useAuth } from './authStore';
 import { toast } from '../ui/components/Toast';
 
 /** Everything a signed-in user does is mirrored to their Supabase rows:
- *  finished sessions (with full question payloads), settings (minus the
- *  Gemini key — that never leaves the device), and generated sets. All
- *  pushes are fire-and-forget; the app never blocks on the network. */
+ *  finished sessions (with full question payloads), settings — including the
+ *  user's own Gemini key, so it is entered once and follows them across
+ *  devices (stored in their RLS-protected row only) — and generated sets.
+ *  All pushes are fire-and-forget; the app never blocks on the network. */
 
 export async function pushSession(session: Session): Promise<void> {
   const user = useAuth.getState().user;
@@ -69,7 +70,6 @@ export async function pullSessions(): Promise<number> {
   return imported;
 }
 
-/** The Gemini key stays in localStorage only (§6) — never synced. */
 function settingsSnapshot(): Record<string, unknown> {
   const s = useSettings.getState();
   return {
@@ -77,6 +77,7 @@ function settingsSnapshot(): Record<string, unknown> {
     examNavFree: s.examNavFree,
     instantFeedback: s.instantFeedback,
     hideTimer: s.hideTimer,
+    geminiKey: s.geminiKey, // entered once, follows the account (own row, RLS)
     modelChain: s.modelChain,
     aiDailyBudget: s.aiDailyBudget,
     aiEquationsEnabled: s.aiEquationsEnabled,
@@ -107,8 +108,10 @@ export async function pullSettings(): Promise<void> {
     return;
   }
   const set = useSettings.getState().set;
+  const localKey = useSettings.getState().geminiKey;
   for (const [key, value] of Object.entries(payload)) {
-    if (key === 'geminiKey') continue;
+    // never let an empty cloud value wipe a key the user just typed locally
+    if (key === 'geminiKey' && !value && localKey) continue;
     set(key as never, value as never);
   }
 }
