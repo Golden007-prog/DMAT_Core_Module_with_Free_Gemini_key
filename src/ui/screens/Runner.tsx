@@ -172,6 +172,19 @@ export default function Runner() {
     if (state === 'finished' && session) navigate(`/results/${session.id}`, { replace: true });
   }, [state, session, navigate]);
 
+  // exam integrity: closing/refreshing the tab mid-exam triggers the native
+  // browser warning; if the user leaves anyway, the unfinished exam is
+  // deleted on the next load instead of resumed
+  useEffect(() => {
+    if (!isExam || state !== 'running') return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isExam, state]);
+
   // soft time warnings at 5:00 and 1:00 (sound/haptic settings apply)
   useEffect(() => {
     if (state !== 'running') return;

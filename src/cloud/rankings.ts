@@ -43,6 +43,10 @@ export const LEAGUES: League[] = [
   { name: 'Gold', minPoints: 800, color: '#D9A514' },
   { name: 'Diamond', minPoints: 1600, color: '#38BDF8' },
   { name: 'Legend', minPoints: 3000, color: '#A3195B' },
+  { name: 'Master', minPoints: 5000, color: '#7C3AED' },
+  { name: 'Grandmaster', minPoints: 8000, color: '#DC2626' },
+  { name: 'Champion', minPoints: 12000, color: '#0D9488' },
+  { name: 'Immortal', minPoints: 16000, color: '#1B1B1F' },
 ];
 
 export function leagueFor(points: number): League {

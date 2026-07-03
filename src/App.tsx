@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { fullCoreStore } from './state/fullCoreStore';
+import ConfirmDialog from './ui/components/ConfirmDialog';
 import { useThemeStore, applyThemeClass, watchSystemTheme } from './state/themeStore';
 import { sessionStore, useSession } from './state/sessionStore';
 import { initTabLock } from './state/tabLock';
@@ -40,6 +42,35 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }
   if (!user) return <Navigate to="/welcome" replace />;
   return <>{children}</>;
+}
+
+/** Exam integrity: leaving the runner while an exam is RUNNING (back button,
+ *  typed URL, any in-app navigation) raises a blocking choice — return to the
+ *  exam, or delete the attempt. There is no third option: an abandoned exam
+ *  is never scored, saved, or resumable. */
+function ExamLeaveGuard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const examRunning = useSession(
+    (s) => s.session?.mode === 'exam' && s.session.state === 'running',
+  );
+  const away = examRunning && location.pathname !== '/run';
+
+  return (
+    <ConfirmDialog
+      open={away}
+      title="Leave the running exam?"
+      body="Your exam is still in progress. If you leave now, this attempt is deleted — it will not be scored, saved, or count toward your rankings."
+      confirmLabel="Delete my exam"
+      cancelLabel="Return to exam"
+      danger
+      onConfirm={() => {
+        void sessionStore.getState().abandon();
+        fullCoreStore.getState().reset();
+      }}
+      onCancel={() => navigate('/run')}
+    />
+  );
 }
 
 export default function App() {
@@ -122,6 +153,7 @@ export default function App() {
       </main>
       <Footer />
       <BottomNav />
+      <ExamLeaveGuard />
       <ToastHost />
     </div>
   );

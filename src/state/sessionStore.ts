@@ -58,6 +58,8 @@ export interface SessionStore {
   flag(questionId: string): void;
   submit(): Promise<void>;
   restart(): Promise<void>;
+  /** delete the live attempt entirely — unscored, unsaved (exam leave rule) */
+  abandon(): Promise<void>;
   resumeIfRunning(): Promise<boolean>;
   freeze(): void;
   unfreeze(): void;
@@ -305,6 +307,23 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
         await get().startNewSession(cfg); // startNewSession draws a new seed
       },
 
+      async abandon() {
+        currentAbort?.abort();
+        deps.timer.disarm();
+        const s = get().session;
+        set({
+          session: null,
+          progress: null,
+          remainingMs: 0,
+          currentIndex: 0,
+          questionShownAt: null,
+        });
+        if (s) {
+          const storage = await deps.storage();
+          await storage.deleteSession(s.id).catch(() => {});
+        }
+      },
+
       async resumeIfRunning() {
         const storage = await deps.storage();
         set({ storagePersistent: storage.persistent });
@@ -320,6 +339,13 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           await writeAttempts(finished);
           set({ session: finished, remainingMs: 0 });
           return true;
+        }
+
+        // exams do not survive leaving the page: an unfinished exam found on
+        // load is deleted, never resumed (practice keeps full refresh-resume)
+        if (latest.mode === 'exam') {
+          await storage.deleteSession(latest.id);
+          return false;
         }
 
         const remaining = latest.endsAt! - now;

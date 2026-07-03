@@ -32,7 +32,7 @@ dMAT preparation free · g.a.s.t. Mastertest practice · dMAT test simulator · 
 | **Real exam timing** | 20 tasks / 25:00 per subtest (75 s per task), drift-free timer, auto-submit, and a full 3-subtest exam run with 60-second breaks |
 | **Unlimited questions** | Every set is freshly generated and machine-validated — never a broken question, never a wrong answer key |
 | **Instant feedback + explanations** | Step-by-step deterministic solutions, rule breakdowns, and an animated sequence replay for figure tasks |
-| **Weekly rankings & leagues** | Difficulty-weighted points (10/20/35 per correct, ×1.15 for mixed sets) plus an under-time bonus of up to +50%; climb Bronze → Silver → Gold → Diamond → Legend on a leaderboard that resets every Monday (UTC) |
+| **Weekly rankings & leagues** | Difficulty-weighted points (10/20/35 per correct, ×1.15 for mixed sets) plus an under-time bonus of up to +50%; climb nine leagues from Bronze to Immortal (16000+) on a leaderboard that resets every Monday (UTC) |
 | **Progress analytics** | Accuracy trends, weakness detection by rule type (e.g. "x+1 acceleration", "hidden singles"), pacing vs the 75 s budget, streaks, and concrete drill suggestions |
 | **Retry tools** | Replay the exact same set (seeded), drill your all-time mistakes notebook, or auto-build a set from a session's errors |
 | **Achievements & streaks** | Ten badges (perfect set, speed demon, 7-day streak…), a daily goal ring, and a practice calendar |
@@ -64,8 +64,11 @@ Most practice sites hand-write a few dozen questions. CoreForge **generates and 
 - Each correct answer: **10** (easy) · **20** (medium) · **35** (hard); mixed sets ×1.15.
 - Finish under the time budget with every question answered → up to **+50% bonus**, proportional
   to the time saved. Wrong or blank answers earn nothing — accuracy first, speed second.
-- Points accumulate per ISO week (UTC) into a shared leaderboard with five leagues:
-  **Bronze** 0+ · **Silver** 300+ · **Gold** 800+ · **Diamond** 1600+ · **Legend** 3000+.
+- Points accumulate per ISO week (UTC) into a shared leaderboard with nine leagues:
+  **Bronze** 0+ · **Silver** 300+ · **Gold** 800+ · **Diamond** 1600+ · **Legend** 3000+ ·
+  **Master** 5000+ · **Grandmaster** 8000+ · **Champion** 12000+ · **Immortal** 16000+.
+- Exam integrity: leaving a running exam (navigating away, closing the tab) deletes the attempt —
+  unfinished exams are never scored, saved, or resumable. Practice sessions survive refreshes.
 
 ## Tech
 
