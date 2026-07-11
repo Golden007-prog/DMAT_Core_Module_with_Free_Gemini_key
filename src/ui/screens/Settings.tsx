@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   useSettings,
   DEFAULT_MODEL_CHAIN,
+  DEFAULT_AI_DAILY_BUDGET,
   RECOMMENDED_MODEL_PREFERENCE,
 } from '../../state/settingsStore';
+import { PICKER_MODELS, catalogEntry, type ModelEntry } from '../../ai/modelCatalog';
 import { useThemeStore, type Theme } from '../../state/themeStore';
 import { GeminiUnavailableError, listAvailableModels } from '../../ai/gemini';
 import { getUsageToday } from '../../ai/aiUsage';
@@ -84,37 +86,64 @@ export default function Settings() {
     }
   };
 
-  const recommendedChain = RECOMMENDED_MODEL_PREFERENCE.filter((m) =>
-    foundModels.includes(m),
-  ).slice(0, 3);
+  /** Only meaningful once the key test has run — before that, an empty foundModels
+   *  means "not checked", not "your key cannot see this". */
+  const keyChecked = keyTest === 'ok';
+  const unseen = (id: string) => keyChecked && !foundModels.includes(id);
 
-  /** Chain entries the live model list does not contain. A model that 404s is the
-   *  single most common cause of "AI unavailable" on a perfectly good key, so it
-   *  is named outright rather than left as a grey dot in a list. */
-  const deadChain = keyTest === 'ok' ? settings.modelChain.filter((m) => !foundModels.includes(m)) : [];
-  // prefer the curated order; if this key sees none of them, its own list still beats a dead chain
-  const repairChain = recommendedChain.length > 0 ? recommendedChain : foundModels.slice(0, 3);
+  /** The curated order, minus anything this key cannot actually see.
+   *
+   *  There is no raw-ListModels fallback behind it any more. The old one took
+   *  foundModels.slice(0, 3) when the curated list intersected the key's models
+   *  nowhere — but ListModels returns every model advertising generateContent,
+   *  which includes the billing-walled ones (gemini-2.5-pro, gemini-3.1-pro-preview)
+   *  and the image-output ones (gemini-3-pro-image), none of which can serve this
+   *  app's text-in/JSON-out calls on a free key. It offered a one-click chain of
+   *  models that 429 or cannot answer at all. Filtering it through the catalogue
+   *  instead is a no-op by construction — RECOMMENDED_MODEL_PREFERENCE already IS
+   *  every free, text-capable, live model — so when nothing is left, the honest
+   *  move is to offer no button (see the guard on recommendedChain.length below)
+   *  rather than a chain we know is broken. */
+  const recommendedChain = keyChecked
+    ? RECOMMENDED_MODEL_PREFERENCE.filter((m) => foundModels.includes(m)).slice(0, 3)
+    : DEFAULT_MODEL_CHAIN;
 
-  /** What the user is *typing*, which is not always a chain: select-all + delete
-   *  is the normal first move when retyping the field, and it must not persist
-   *  `modelChain: []` — an empty chain makes generateJson fail before it sends a
-   *  single request. The draft holds the raw text; only a non-empty parse reaches
-   *  the store, and blur snaps the box back to the chain actually in force so a
-   *  field left empty never misrepresents what the app will use. */
-  const [chainDraft, setChainDraft] = useState<string | null>(null);
-  const chainText = chainDraft ?? settings.modelChain.join(', ');
-
-  const editChain = (text: string) => {
-    setChainDraft(text);
-    const next = text.split(',').map((s) => s.trim()).filter(Boolean);
-    if (next.length > 0) settings.set('modelChain', next);
-  };
-
-  /** the buttons below set the chain wholesale — drop the draft so the box shows it */
+  /** The store rejects an empty chain outright (an empty chain makes generateJson
+   *  fail before it sends a request), so the UI never offers a move that would
+   *  produce one — removing the last remaining model is disabled, not silently
+   *  swallowed. */
   const applyChain = (chain: string[]) => {
-    setChainDraft(null);
-    settings.set('modelChain', chain);
+    if (chain.length > 0) settings.set('modelChain', chain);
   };
+
+  const addModel = (id: string) => applyChain([...settings.modelChain, id]);
+  const removeModel = (id: string) => {
+    if (settings.modelChain.length <= 1) return;
+    applyChain(settings.modelChain.filter((m) => m !== id));
+  };
+  const moveModel = (from: number, to: number) => {
+    if (to < 0 || to >= settings.modelChain.length) return;
+    const next = [...settings.modelChain];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    applyChain(next);
+  };
+
+  /** Why a row is not selectable — the whole point of the registry. A billing wall
+   *  and a spent free quota both arrive as 429 RESOURCE_EXHAUSTED, so the user can
+   *  only learn the difference here. */
+  const blockedReason = (m: ModelEntry): string | null => {
+    if (m.tier === 'billing') return 'requires billing on your Google Cloud project';
+    if (unseen(m.id)) return 'your key cannot see this model';
+    return null;
+  };
+
+  /** The fact that decides whether a model belongs in a chain at all. */
+  const capLabel = (m: ModelEntry | undefined) =>
+    m?.freeRequestsPerDay !== undefined ? `${m.freeRequestsPerDay}/day` : null;
+
+  const chainIcon =
+    'rounded border border-zinc-300 px-1.5 py-0.5 text-xs leading-none hover:bg-zinc-100 disabled:opacity-30 dark:border-zinc-700 dark:hover:bg-zinc-800';
 
   const doExport = async () => {
     const storage = await getStorage();
@@ -222,79 +251,133 @@ export default function Settings() {
             </span>
           </label>
 
-          <label className="mt-3 block text-sm font-medium" htmlFor="model-chain">
-            Model chain (first available wins)
-          </label>
-          <input
-            id="model-chain"
-            type="text"
-            value={chainText}
-            onChange={(e) => editChain(e.target.value)}
-            onBlur={() => setChainDraft(null)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
-          />
+          <p className="mt-4 text-sm font-medium">Model chain (first available wins)</p>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Measured on a free key: gemini-3.1-flash-lite answers in under a second and keeps
+            answering all day, while gemini-3.5-flash is capped at 20 requests a day — about one
+            practice session. So volume leads and quality escalates behind it.
+          </p>
 
-          {keyTest === 'ok' && deadChain.length > 0 && (
-            <div className="mt-2 rounded-lg border border-error/40 bg-error/5 p-3">
-              <p className="text-sm text-error">
-                {deadChain.length === 1 ? 'This model does not exist' : 'These models do not exist'} for
-                your key:{' '}
-                <span className="font-mono">{deadChain.join(', ')}</span>. That is enough to make AI
-                report itself unavailable.
-              </p>
-              {repairChain.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => applyChain(repairChain)}
-                  className="mt-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
+          <ol className="mt-2 space-y-1.5">
+            {settings.modelChain.map((id, i) => {
+              const entry = catalogEntry(id);
+              const cap = capLabel(entry);
+              const missing = unseen(id);
+              return (
+                <li
+                  key={id}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-zinc-200 px-2.5 py-2 dark:border-zinc-800"
                 >
-                  Fix chain → {repairChain.join(', ')}
-                </button>
-              )}
-            </div>
-          )}
-
-          {keyTest === 'ok' && (
-            <ul className="mt-2 space-y-1">
-              {settings.modelChain.map((m) => {
-                const exists = foundModels.includes(m);
-                return (
-                  <li key={m} className="flex items-center gap-2 font-mono text-xs">
-                    <span
-                      aria-hidden
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        exists ? 'bg-success' : 'bg-zinc-300 dark:bg-zinc-600'
-                      }`}
-                    />
-                    <span className={exists ? '' : 'text-zinc-400 line-through dark:text-zinc-500'}>
-                      {m}
+                  <span className="text-xs font-semibold tabular-nums text-zinc-400">{i + 1}</span>
+                  <span className="font-mono text-xs">{id}</span>
+                  {cap && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                      {cap}
                     </span>
-                    <span className="font-sans text-zinc-500 dark:text-zinc-400">
-                      {exists ? 'available' : 'not available for this key'}
+                  )}
+                  {missing && <span className="text-xs text-error">not available for this key</span>}
+                  {!entry && (
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      not in the tested catalogue
                     </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                  )}
+                  <span className="ml-auto flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveModel(i, i - 1)}
+                      disabled={i === 0}
+                      aria-label={`Move ${id} earlier`}
+                      className={chainIcon}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveModel(i, i + 1)}
+                      disabled={i === settings.modelChain.length - 1}
+                      aria-label={`Move ${id} later`}
+                      className={chainIcon}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeModel(id)}
+                      // the chain can never be emptied — the store rejects it, and
+                      // an empty chain makes every AI call fail before it is sent
+                      disabled={settings.modelChain.length <= 1}
+                      title={
+                        settings.modelChain.length <= 1
+                          ? 'The chain needs at least one model'
+                          : undefined
+                      }
+                      aria-label={`Remove ${id} from the chain`}
+                      className={chainIcon}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
 
-          <div className="mt-1 flex flex-wrap gap-3">
+          <p className="mt-3 text-sm font-medium">Add a model</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {PICKER_MODELS.filter((m) => !settings.modelChain.includes(m.id)).map((m) => {
+              const blocked = blockedReason(m);
+              const cap = capLabel(m);
+              return (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => addModel(m.id)}
+                    disabled={blocked !== null}
+                    className={`flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-2.5 py-2 text-left ${
+                      blocked
+                        ? 'cursor-not-allowed border-zinc-200 opacity-60 dark:border-zinc-800'
+                        : 'border-zinc-200 hover:border-accent hover:bg-accent-tint dark:border-zinc-800 dark:hover:border-accent-dark dark:hover:bg-accent/10'
+                    }`}
+                  >
+                    <span className="font-mono text-xs">{m.id}</span>
+                    {cap && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                        {cap} on the free tier
+                      </span>
+                    )}
+                    {m.status === 'recommended' && (
+                      <span className="rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                        recommended
+                      </span>
+                    )}
+                    <span className="w-full text-xs text-zinc-500 dark:text-zinc-400">
+                      {blocked ?? m.note}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="mt-2 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => applyChain(DEFAULT_MODEL_CHAIN)}
               className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
             >
-              Reset to default chain
+              Reset to the recommended chain ({DEFAULT_MODEL_CHAIN.join(', ')})
             </button>
-            {recommendedChain.length > 0 && (
-              <button
-                type="button"
-                onClick={() => applyChain(recommendedChain)}
-                className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
-              >
-                Use recommended chain ({recommendedChain.join(', ')})
-              </button>
-            )}
+            {keyChecked &&
+              recommendedChain.length > 0 &&
+              recommendedChain.join() !== DEFAULT_MODEL_CHAIN.join() && (
+                <button
+                  type="button"
+                  onClick={() => applyChain(recommendedChain)}
+                  className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
+                >
+                  Use the best chain your key can see ({recommendedChain.join(', ')})
+                </button>
+              )}
           </div>
 
           <div className="mt-3">
@@ -309,7 +392,10 @@ export default function Settings() {
                 max={200}
                 value={settings.aiDailyBudget}
                 onChange={(e) =>
-                  settings.set('aiDailyBudget', Math.max(1, Math.min(200, Number(e.target.value) || 25)))
+                  settings.set(
+                    'aiDailyBudget',
+                    Math.max(1, Math.min(200, Number(e.target.value) || DEFAULT_AI_DAILY_BUDGET)),
+                  )
                 }
                 className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />

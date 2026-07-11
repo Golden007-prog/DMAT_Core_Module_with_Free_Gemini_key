@@ -12,43 +12,218 @@ import { LATIN_ALPHABETS, glyphFor } from '../engine/latinSquares/alphabets';
 
 /* ------------------------------- G1: equations ---------------------------- */
 
-export const EQUATION_BATCH_SCHEMA = {
-  type: 'array',
-  items: {
-    type: 'object',
-    properties: {
-      equations: { type: 'array', items: { type: 'string' } },
-      solution: {
-        type: 'object',
-        properties: {
-          A: { type: 'integer' },
-          B: { type: 'integer' },
-          C: { type: 'integer' },
-          D: { type: 'integer' },
+/**
+ * Construct-from-solution schema. The model is bad at SOLVING and fine at
+ * CONSTRUCTING, so it is never asked to solve: it picks the answer first and
+ * then builds lines that are true for it.
+ *
+ * `propertyOrdering` is the load-bearing part, not decoration. Gemini emits the
+ * keys of an object in the order this schema declares them, and every equation
+ * call runs at thinkingBudget 0 — the model has NO scratch space, so the only
+ * place it can do arithmetic is in the tokens it emits. Ordering the keys
+ * solution → left → leftValue → right → rightValue → equation therefore forces
+ * it to (a) choose the values before any equation exists, (b) evaluate each side
+ * BEFORE it writes the line that depends on that value. The working fields are
+ * scaffolding: validateAi keeps only `equation` and throws the rest away.
+ *
+ * Measured on gemini-3.1-flash-lite, 20-system batches: the medium band's whole
+ * failure mode was "system has no solution in [1..20]" — the model inventing a
+ * line like "2 × A + 3 × C = 35" and getting 8 + 27 wrong in one forward pass
+ * with nowhere to work it out. See equationBatchPrompt.
+ */
+/** What each band is made of. The schema is generated from this, so a band can
+ *  only ever emit the variables and the line count it is supposed to have. */
+const BAND: Record<Difficulty, { vars: string[]; lines: number }> = {
+  easy: { vars: ['A', 'B'], lines: 2 },
+  medium: { vars: ['A', 'B', 'C'], lines: 3 },
+  hard: { vars: ['A', 'B', 'C', 'D'], lines: 4 },
+};
+
+/**
+ * The schema is generated per band, not shared, and both of those facts are
+ * load-bearing.
+ *
+ * SCOPED TO THE BAND. A schema that offers A, B, C and D on every band gets all
+ * four filled in on every band. Measured 2026-07-11, gemini-3.1-flash-lite: with
+ * one shared schema the easy band returned 20/20 systems built on three
+ * variables — the prompt said "variables A and B" and the schema said otherwise,
+ * and the schema won. Declaring only the band's own variables, `required`, and
+ * pinning `lines` to minItems === maxItems makes the wrong shape unrepresentable
+ * rather than merely discouraged.
+ *
+ * ORDERED. Gemini emits an object's keys in the order the schema declares them,
+ * and every equation call runs at thinkingBudget 0 — the model has NO scratch
+ * space, so the only place it can do arithmetic is in the tokens it emits.
+ * Ordering the keys solution → left → leftSub → leftValue → right → rightValue →
+ * equation therefore forces it to (a) choose the answer before any equation
+ * exists, (b) substitute, (c) evaluate, and only then (d) commit to a line that
+ * is true by construction. Splitting leftSub (substitute, no arithmetic) from
+ * leftValue (arithmetic on literals it can now see) is what makes a four-term
+ * signed sum survivable: with leftValue alone the model wrote
+ * "A + B − C − D = 14" for a side worth 10, and the hard band collapsed to 10/20.
+ *
+ * validateAi keeps only `equation`; every other field is scaffolding and is
+ * discarded once it has done its job.
+ */
+export function equationBatchSchema(difficulty: Difficulty): object {
+  const { vars, lines } = BAND[difficulty];
+  const solution: Record<string, object> = {};
+  for (const v of vars) solution[v] = { type: 'integer', minimum: 1, maximum: 20 };
+
+  return {
+    type: 'array',
+    items: {
+      type: 'object',
+      propertyOrdering: ['solution', 'lines'],
+      properties: {
+        solution: {
+          type: 'object',
+          propertyOrdering: vars,
+          properties: solution,
+          required: vars,
+        },
+        lines: {
+          type: 'array',
+          minItems: lines,
+          maxItems: lines,
+          items: {
+            type: 'object',
+            propertyOrdering: ['left', 'leftSub', 'leftValue', 'right', 'rightValue', 'equation'],
+            properties: {
+              left: { type: 'string' },
+              leftSub: { type: 'string' },
+              // −99..99, and the negative half is the whole point. This bound was
+              // 1..99 for one measured round, on the theory that a side worth 0 or
+              // less becomes an illegal displayed constant. It backfired: a
+              // mixed-sign hub lands on a negative value often, and a model that
+              // is FORBIDDEN to say so does not rewrite the line — it writes the
+              // false value the schema will accept and then bends the other side
+              // to match it ("D + B − C + A = 5 − 4" for a side truly worth −1).
+              // A bound the model can only satisfy by lying manufactures the exact
+              // inconsistency it was added to prevent, and the hard band fell to
+              // 12/20. Only 0 is actually fatal downstream (validate.ts wants every
+              // displayed integer in 1..99, and −1 displays the digit 1); a
+              // negative constant is legal, so let the model tell the truth and
+              // steer it toward positive sides in prose instead.
+              leftValue: { type: 'integer', minimum: -99, maximum: 99 },
+              right: { type: 'string' },
+              rightValue: { type: 'integer', minimum: -99, maximum: 99 },
+              equation: { type: 'string' },
+            },
+            required: ['left', 'leftSub', 'leftValue', 'right', 'rightValue', 'equation'],
+          },
         },
       },
+      required: ['solution', 'lines'],
     },
-    required: ['equations', 'solution'],
-  },
-} as const;
+  };
+}
 
-const DIFficultySpec: Record<Difficulty, string> = {
-  easy: '2 variables (A, B) and exactly 2 equations; one equation resolves a variable directly, the other is a direct substitution.',
+const DIFFICULTY_SPEC: Record<Difficulty, string> = {
+  easy: 'variables A and B, exactly 2 lines — one line fixes a variable outright (like "5 + A = 12"), the other links B to A (like "B − 3 = A").',
   medium:
-    '3 variables (A, B, C) and exactly 3 equations; include one multiplicative definition (like "3 × A = B" or "B ÷ 2 = A") and one combining equation with coefficients.',
-  hard: '4 variables (A, B, C, D) and exactly 4 equations; three definitions plus one hub equation over 3-4 variables with mixed signs (like "A − B + C − D = 2").',
+    'variables A, B and C, exactly 3 lines — two definition lines that CHAIN, each introducing exactly one new variable (line 1 defines B from A, line 2 defines C from B), at least one of them multiplicative or an exact division (like "3 × A = B" or "B ÷ 2 = C"), plus one combining line with coefficients over two or three variables and a plain integer on the right (like "2 × A + 3 × C = 35").',
+  // The chain is spelled out variable by variable because "three definitions plus
+  // a hub" was not specific enough to be independent: measured, the model would
+  // define C twice and never define D, and the system then had many solutions in
+  // 1..20 (6 of 20 in one hard batch). Each definition introducing exactly one NEW
+  // variable makes the first three lines independent by construction, and the hub
+  // supplies the fourth constraint.
+  hard: 'variables A, B, C and D, exactly 4 lines — three definition lines that CHAIN, each introducing exactly one new variable: line 1 defines B from A, line 2 defines C from B, line 3 defines D from C. Then one hub line using all four variables with mixed signs and a plain integer on the right (like "A − B + C + D = 13").',
+};
+
+/** One system per band, worked the way the model must work all `count` of them.
+ *  The substitution is spelled out on its own on purpose: the example is not
+ *  showing the model what a system looks like (it knows that), it is showing it
+ *  that the working belongs in leftSub/leftValue and happens BEFORE the line. */
+const WORKED_EXAMPLE: Record<Difficulty, string[]> = {
+  easy: [
+    '  solution: A=7, B=10',
+    '  line 1: left "5 + A", leftSub "5 + 7", leftValue 12, right "12", rightValue 12, equation "5 + A = 12".',
+    '  line 2: left "B − 3", leftSub "10 − 3", leftValue 7, right "A", rightValue 7, equation "B − 3 = A".',
+    '  A=7, B=10 balances both lines, and no other pair in 1..20 does.',
+  ],
+  medium: [
+    '  solution: A=4, B=12, C=9',
+    '  line 1 (B from A):    left "B ÷ 3", leftSub "12 ÷ 3", leftValue 4, right "A", rightValue 4, equation "B ÷ 3 = A".',
+    '  line 2 (C from B):    left "C + 3", leftSub "9 + 3", leftValue 12, right "B", rightValue 12, equation "C + 3 = B".',
+    '  line 3 (the combine): left "2 × A + 3 × C", leftSub "2 × 4 + 3 × 9", leftValue 35, right "35", rightValue 35, equation "2 × A + 3 × C = 35".',
+    '    (leftValue worked out from leftSub, left to right: 2 × 4 is 8, 3 × 9 is 27, 8 + 27 is 35.)',
+    '  A=4, B=12, C=9 balances all three lines, and no other triple in 1..20 does.',
+  ],
+  hard: [
+    '  solution: A=3, B=9, C=5, D=14',
+    '  line 1 (B from A): left "3 × A", leftSub "3 × 3", leftValue 9, right "B", rightValue 9, equation "3 × A = B".',
+    '  line 2 (C from B): left "C + 4", leftSub "5 + 4", leftValue 9, right "B", rightValue 9, equation "C + 4 = B".',
+    '  line 3 (D from C): left "D − C", leftSub "14 − 5", leftValue 9, right "9", rightValue 9, equation "D − C = 9".',
+    '  line 4 (the hub):  left "A − B + C + D", leftSub "3 − 9 + 5 + 14", leftValue 13, right "13", rightValue 13, equation "A − B + C + D = 13".',
+    '    (leftValue worked out from leftSub, left to right: 3 − 9 is −6, −6 + 5 is −1, −1 + 14 is 13.)',
+    '  A=3, B=9, C=5, D=14 balances all four lines, and no other quadruple in 1..20 does.',
+  ],
 };
 
 export function equationBatchPrompt(count: number, difficulty: Difficulty): string {
+  const { vars, lines } = BAND[difficulty];
   return [
     `Generate ${count} original systems of linear equations for a dMAT-style aptitude test.`,
-    `Difficulty: ${DIFficultySpec[difficulty]}`,
-    'Hard constraints for EVERY system:',
-    '- Every variable value is an integer from 1 to 20 and the system has EXACTLY ONE solution.',
-    '- Allowed equation grammar: each side is a sum/difference of terms; a term is an integer, a variable, "int × var", or "var ÷ int" (exact division only).',
-    '- Use the glyphs × and ÷ and the minus sign −. Never use *, /, ^, brackets, or decimals.',
-    '- Displayed integer constants stay between 1 and 99.',
-    'Return a JSON array; each item has "equations" (array of strings) and "solution" (object mapping each variable letter to its integer value).',
+    `Every system in this batch has ${DIFFICULTY_SPEC[difficulty]}`,
+    '',
+    'BUILD EACH SYSTEM BACKWARDS FROM ITS ANSWER. Do not invent equations and then hope a legal answer',
+    'falls out of them — it will not. Choose the answer first, then write lines that are true for it by',
+    'construction. Fill the fields strictly in the order below, and do the arithmetic as you go.',
+    '',
+    `1. "solution" — pick a whole number from 1 to 20 for each of ${vars.join(', ')}. This is a free choice:`,
+    '   nothing constrains it yet, so simply choose. Vary the values widely across the batch.',
+    `2. Then, for each of the ${lines} lines in turn:`,
+    '   "left"       the left-hand side, written with variables, e.g. "2 × A + 3 × C".',
+    '   "leftSub"    "left" again with every variable replaced by the number you chose for it, and NOTHING',
+    '                worked out yet: "2 × 4 + 3 × 9". Copy the numbers in; do not add them up here.',
+    '   "leftValue"  now work leftSub out, left to right, one step at a time. You are adding up numbers you',
+    '                can see rather than holding an expression in your head, which is why this comes last.',
+    '   "right"      the right-hand side. It must be worth exactly leftValue. On a DEFINITION line this is',
+    '                normally the new variable being defined ("B"). On the FINAL line it must be the plain',
+    '                integer leftValue, written as a bare number. Never write a sum here to hit the number:',
+    '                "13", never "9 + 4". Never dress up a wrong leftValue by bending this side to match it.',
+    '   "rightValue" substitute your values into "right" and work it out the same way. If it does not equal',
+    '                leftValue, change "right" until it does — never edit leftValue to cover the gap.',
+    '   "equation"   exactly "<left> = <right>", copied character for character from those two fields.',
+    'Because both sides were evaluated before the line was written, every line balances by construction.',
+    'leftValue is a fact about the values you chose, not a wish: report what leftSub actually comes to,',
+    'even when that is a negative number. If a side comes out negative or 0, do not fake a positive value —',
+    'go back and change which variables carry a minus sign until the side genuinely lands where you want it.',
+    '',
+    `WORKED EXAMPLE — one ${difficulty} system, done exactly the way you must do all ${count}:`,
+    ...WORKED_EXAMPLE[difficulty],
+    '',
+    'HARD RULES for every system:',
+    '- The system must have EXACTLY ONE solution in 1..20, so every line has to pin down something the',
+    '  others leave open. Two lines that say the same thing are worth one line, and the system is then',
+    '  short of information and has many solutions. "2 × A = B" and "B ÷ 2 = A" are ONE line written twice,',
+    '  not two. So are "C + 3 = B" and "B − 3 = C". Never restate an earlier line rearranged or rescaled.',
+    '- A variable may never appear on BOTH sides of the same line. "D + A − B + C = C" cancels the C and',
+    '  says nothing about C at all, which leaves the system with many solutions even though the line looks',
+    '  full. Each line must genuinely constrain every variable it mentions.',
+    '- THE FINAL LINE IS THE ONLY THING THAT FIXES A, so its right-hand side must be a bare integer, never',
+    '  a variable. The definition lines only pass a value along the chain — on their own, A could still be',
+    '  anything and they would all still balance. Put a variable on the right of the final line and it stops',
+    '  fixing anything: "A × 2 = B", "B ÷ 2 = C", "3 × A − C = B" is really just "2 × A = 2 × A", true for',
+    '  every A, and the system has many solutions. Written as "3 × A − C = 8" the same line forces A = 4.',
+    '- The variables must all have DIFFERENT values, and the chain must not undo itself. If line 1 multiplies',
+    '  A by 3 to get B, line 2 must not divide B by 3 to get C — that only makes C equal to A again, and the',
+    '  chain is fake. Each new variable must land somewhere genuinely new.',
+    '- Grammar: a side is terms joined by + or −. A term is an integer, a variable, "int × var" with the',
+    '  integer FIRST ("3 × A", never "A × 3"), or "var ÷ int". No variable twice on the same side.',
+    '- In "var ÷ int" the divisor is a whole number that divides that variable\'s chosen value exactly:',
+    '  with B=12, "B ÷ 3" is legal, while "B ÷ 5" and "B ÷ 4.5" are not. One fraction ruins the system.',
+    '- Write ×, ÷ and − as those three glyphs. Never *, /, ^, brackets, decimals, fractions, or an implicit',
+    '  product like "2A".',
+    '- Every integer appearing in a line is between 1 and 99. Aim for each side to land on a positive value',
+    '  in that range: you know all the values before you fix the signs, so on a mixed-sign line check leftSub',
+    '  first and choose which variables are subtracted so the side comes out positive. A side worth exactly 0',
+    '  cannot be written at all, so never let one land there.',
+    `- Use every one of ${vars.join(', ')} in at least one line, and no other letters.`,
+    `- The ${count} systems must differ from one another: different values, different coefficients, different`,
+    '  shapes. Do not emit one template with the numbers nudged.',
   ].join('\n');
 }
 

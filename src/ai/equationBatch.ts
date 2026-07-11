@@ -5,7 +5,7 @@ import { useSettings } from '../state/settingsStore';
 import { toast } from '../ui/components/Toast';
 import { generateJson } from './gemini';
 import { salvageAiEquationSet } from './validateAi';
-import { EQUATION_BATCH_SCHEMA, equationBatchPrompt } from './prompts';
+import { equationBatchPrompt, equationBatchSchema } from './prompts';
 import { aiOnly, contributeQuestions, pullPoolEquationSet } from '../cloud/questionPool';
 
 /**
@@ -33,7 +33,9 @@ export async function fetchAiEquationSet(
         key: settings.geminiKey,
         modelChain: settings.modelChain,
         prompt: equationBatchPrompt(cfg.count, cfg.difficulty),
-        schema: EQUATION_BATCH_SCHEMA,
+        // scoped to the band: the schema is what stops an "easy" batch coming back
+        // built on four variables (see equationBatchSchema)
+        schema: equationBatchSchema(cfg.difficulty),
         signal,
         dailyBudget: settings.aiDailyBudget,
         // Bulk work, and salvageAiEquationSet re-validates every system against
@@ -41,6 +43,14 @@ export async function fetchAiEquationSet(
         // buys nothing here, while thinking on a 20-system batch costs ~7,900
         // tokens and either blows the output budget or the timeout.
         thinkingBudget: 0,
+        // The construct-from-solution schema makes the model show its working
+        // (see equationBatchSchema), which is the whole reason its arithmetic
+        // holds up — and it costs output tokens: measured, a 20-system hard batch
+        // writes ~7,000 where the old flat schema wrote ~1,500. The 8192 default
+        // left barely a thousand tokens of headroom, and a batch that overruns it
+        // does not degrade, it comes back MAX_TOKENS with unparseable JSON and
+        // loses every system at once.
+        maxOutputTokens: 12288,
       });
       const { questions, aiAccepted } = salvageAiEquationSet(
         payload,

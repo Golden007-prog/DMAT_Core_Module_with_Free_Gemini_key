@@ -49,7 +49,12 @@ export async function explainMistake(
   if (!settings.geminiKey) throw new Error('AI layer not configured');
 
   const cacheKey = `explain:${question.seed}:${hashString(JSON.stringify(userAnswer ?? null))}`;
-  const cached = await cachedStructured(cacheKey, sanitizeExplanation);
+  // The question goes into the cache read too, not just the fresh call: rows
+  // written before the Latin glyph firewall landed still hold a bare A–E, and a
+  // cache is forever. Repairing on the way out fixes them without a migration.
+  const cached = await cachedStructured(cacheKey, (payload) =>
+    sanitizeExplanation(payload, question),
+  );
   if (cached) return cached;
 
   const result = await generateJson<unknown>({
@@ -66,7 +71,7 @@ export async function explainMistake(
   });
   // R7: a malformed explanation is a failure, not a degraded render — the
   // caller falls back to the deterministic steps already on screen.
-  const explanation = sanitizeExplanation(result);
+  const explanation = sanitizeExplanation(result, question);
   if (!explanation) throw new Error('malformed explanation');
 
   const storage = await getStorage();
@@ -119,8 +124,49 @@ function buildStats(sessions: Session[], attempts: AttemptRow[]): CoachStats {
   };
 }
 
+/**
+ * The coach cache key, deliberately COARSER than the stats it is derived from.
+ *
+ * Hashing the stats object itself made the cache useless: overallAccuracy is a raw
+ * float over every attempt ever recorded, so it moves after every single answered
+ * question — and so do the per-subtest and per-tag accuracies. The key therefore
+ * changed on every visit after any practice, missed, and billed a fresh API call
+ * for a plan that had not meaningfully changed. Bucketing (accuracies to 5 points,
+ * attempt counts to 10, times to 5 s) means the plan is reused across a session and
+ * regenerated when the picture genuinely moves.
+ *
+ * The honest cost: the PROMPT still carries full-precision stats, so a cached plan
+ * may quote an accuracy that has since drifted by a point or two. A stale "48% on
+ * figures" is worth vastly more than one API call per page view.
+ */
+function coachCacheKey(stats: CoachStats): string {
+  const pct = (x: number) => Math.round(x * 20) / 20;
+  const tens = (n: number) => Math.round(n / 10) * 10;
+  const shape = {
+    sessions: stats.sessions,
+    overallAccuracy: pct(stats.overallAccuracy),
+    perSubtest: Object.fromEntries(
+      Object.entries(stats.perSubtest).map(([type, s]) => [
+        type,
+        {
+          accuracy: pct(s.accuracy),
+          avgTimeSec: Math.round(s.avgTimeSec / 5) * 5,
+          attempts: tens(s.attempts),
+        },
+      ]),
+    ),
+    weakestTags: stats.weakestTags.map((t) => ({
+      tag: t.tag,
+      accuracy: pct(t.accuracy),
+      attempts: tens(t.attempts),
+    })),
+    unansweredShareExam: pct(stats.unansweredShareExam),
+  };
+  return `coach:${hashString(JSON.stringify(shape))}`;
+}
+
 /** G3: coaching narrative from aggregated stats only (never raw personal
- *  data). Cached per stats-hash. */
+ *  data). Cached per bucketed stats-hash. */
 export async function coachNarrative(
   sessions: Session[],
   attempts: AttemptRow[],
@@ -129,7 +175,7 @@ export async function coachNarrative(
   if (!settings.geminiKey) throw new Error('AI layer not configured');
 
   const stats = buildStats(sessions, attempts);
-  const cacheKey = `coach:${hashString(JSON.stringify(stats))}`;
+  const cacheKey = coachCacheKey(stats);
   const cached = await cachedStructured(cacheKey, sanitizeCoachPlan);
   if (cached) return cached;
 

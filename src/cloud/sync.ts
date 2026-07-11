@@ -2,7 +2,7 @@ import type { Session } from '../engine/types';
 import { getStorage, type AttemptRow } from '../storage/db';
 import { isAnswerCorrect } from '../state/scoring';
 import { sessionStore } from '../state/sessionStore';
-import { useSettings } from '../state/settingsStore';
+import { repairModelChain, useSettings } from '../state/settingsStore';
 import { useHistory } from '../state/historyStore';
 import { supabase } from './supabaseClient';
 import { useAuth } from './authStore';
@@ -113,6 +113,16 @@ export async function pullSettings(): Promise<void> {
   for (const [key, value] of Object.entries(payload)) {
     // never let an empty cloud value wipe a key the user just typed locally
     if (key === 'geminiKey' && !value && localKey) continue;
+    // The cloud row is a chain that never passed through THIS device's migration:
+    // it was written by whichever device pushed last, possibly still on an old
+    // build, and re-injecting it verbatim on every sign-in would reinstate a dead
+    // or backwards chain the local repair had already fixed — permanently, since
+    // it then persists at the current version and migrate never sees it again.
+    // Same repair the store applies on rehydration, applied at the same boundary.
+    if (key === 'modelChain') {
+      set('modelChain', repairModelChain(value));
+      continue;
+    }
     set(key as never, value as never);
   }
 }
