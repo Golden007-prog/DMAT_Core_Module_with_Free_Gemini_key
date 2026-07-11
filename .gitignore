@@ -36,8 +36,13 @@ test-results/
 .claude/
 .mcp.json
 
+# The unit suite and its CI ARE published: they gate `npm test` on every push,
+# and a public repo whose CI runs no tests is a green badge that proves nothing.
+# vite.config.ts already points setupFiles at src/tests/setup.ts, so a clone
+# without it could not run `npm test` at all.
+
 # development-only (kept locally, not part of the published site)
-src/tests/
+# scripts/ stays out on purpose: the diagnostics there read .env.
 e2e/
 scripts/
 playwright.config.ts
@@ -45,4 +50,3 @@ deploy/
 supabase/
 vercel.json
 public/_redirects
-.github/workflows/ci.yml
