@@ -3,14 +3,18 @@ import type { AttemptRow } from '../storage/db';
 import { getStorage } from '../storage/db';
 import { useSettings } from '../state/settingsStore';
 import { generateJson } from './gemini';
-import { sanitizePlainText } from './validateAi';
+import { sanitizeCoachPlan, sanitizeExplanation } from './validateAi';
 import {
   COACH_SCHEMA,
   EXPLAIN_SCHEMA,
   coachPrompt,
   explainMistakePrompt,
+  type AiCoachPlan,
+  type AiExplanation,
   type CoachStats,
 } from './prompts';
+
+export type { AiCoachPlan, AiExplanation, CoachDrill, CoachLeveragePoint, ExplainStep } from './prompts';
 
 function hashString(s: string): number {
   let h = 5381;
@@ -18,28 +22,56 @@ function hashString(s: string): number {
   return h;
 }
 
+/** The cache table stores strings, and rows written before the structured
+ *  payloads landed hold raw prose. Anything that does not parse into the
+ *  current shape is a miss and gets overwritten — never a crash. */
+async function cachedStructured<T>(
+  key: string,
+  parse: (payload: unknown) => T | null,
+): Promise<T | null> {
+  const storage = await getStorage();
+  const cached = await storage.aiCacheGet(key);
+  if (!cached) return null;
+  try {
+    return parse(JSON.parse(cached));
+  } catch {
+    return null;
+  }
+}
+
 /** G2: tutor explanation targeted at the learner's specific mistake.
  *  Cached forever per (questionSeed, userAnswer). */
-export async function explainMistake(question: Question, userAnswer: unknown): Promise<string> {
+export async function explainMistake(
+  question: Question,
+  userAnswer: unknown,
+): Promise<AiExplanation> {
   const settings = useSettings.getState();
   if (!settings.geminiKey) throw new Error('AI layer not configured');
 
   const cacheKey = `explain:${question.seed}:${hashString(JSON.stringify(userAnswer ?? null))}`;
-  const storage = await getStorage();
-  const cached = await storage.aiCacheGet(cacheKey);
+  const cached = await cachedStructured(cacheKey, sanitizeExplanation);
   if (cached) return cached;
 
-  const result = await generateJson<{ explanation: string }>({
+  const result = await generateJson<unknown>({
     key: settings.geminiKey,
     modelChain: settings.modelChain,
     prompt: explainMistakePrompt(question, userAnswer),
     schema: EXPLAIN_SCHEMA,
     dailyBudget: settings.aiDailyBudget,
+    // Short and quality-sensitive, so a thinking budget is tempting — but only
+    // budget 0 is measured as accepted by every model in the chain (the lite tier
+    // is natively non-thinking), and this runs inline right after a mistake. A
+    // fast, well-formed explanation beats an unverified request shape.
+    thinkingBudget: 0,
   });
-  const text = sanitizePlainText(result.explanation ?? '');
-  if (!text) throw new Error('empty explanation');
-  await storage.aiCacheSet(cacheKey, text);
-  return text;
+  // R7: a malformed explanation is a failure, not a degraded render — the
+  // caller falls back to the deterministic steps already on screen.
+  const explanation = sanitizeExplanation(result);
+  if (!explanation) throw new Error('malformed explanation');
+
+  const storage = await getStorage();
+  await storage.aiCacheSet(cacheKey, JSON.stringify(explanation));
+  return explanation;
 }
 
 function buildStats(sessions: Session[], attempts: AttemptRow[]): CoachStats {
@@ -92,25 +124,28 @@ function buildStats(sessions: Session[], attempts: AttemptRow[]): CoachStats {
 export async function coachNarrative(
   sessions: Session[],
   attempts: AttemptRow[],
-): Promise<string> {
+): Promise<AiCoachPlan> {
   const settings = useSettings.getState();
   if (!settings.geminiKey) throw new Error('AI layer not configured');
 
   const stats = buildStats(sessions, attempts);
   const cacheKey = `coach:${hashString(JSON.stringify(stats))}`;
-  const storage = await getStorage();
-  const cached = await storage.aiCacheGet(cacheKey);
+  const cached = await cachedStructured(cacheKey, sanitizeCoachPlan);
   if (cached) return cached;
 
-  const result = await generateJson<{ plan: string }>({
+  const result = await generateJson<unknown>({
     key: settings.geminiKey,
     modelChain: settings.modelChain,
     prompt: coachPrompt(stats),
     schema: COACH_SCHEMA,
     dailyBudget: settings.aiDailyBudget,
+    // same call as explainMistake: thinking off, for the same measured reason
+    thinkingBudget: 0,
   });
-  const text = sanitizePlainText(result.plan ?? '');
-  if (!text) throw new Error('empty plan');
-  await storage.aiCacheSet(cacheKey, text);
-  return text;
+  const plan = sanitizeCoachPlan(result);
+  if (!plan) throw new Error('malformed plan');
+
+  const storage = await getStorage();
+  await storage.aiCacheSet(cacheKey, JSON.stringify(plan));
+  return plan;
 }

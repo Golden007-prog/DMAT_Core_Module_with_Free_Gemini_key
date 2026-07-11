@@ -1,3 +1,5 @@
+import type { LatinExplainStep } from './latinSquares/explain';
+
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type SubtestType = 'figures' | 'equations' | 'latin';
 
@@ -115,6 +117,9 @@ export interface LatinQuestion extends BaseQuestion {
   solutionLetter: LatinLetter;
   inferenceDepth: number;
   explanationSteps: string[]; // ordered forced deductions
+  /** the same deductions as facts, so the prose can be re-rendered in whatever
+   *  alphabet the learner picked — absent on sessions saved before it existed */
+  explainChain?: LatinExplainStep[];
   /** display alphabet — internal logic always runs on A–E ('letters' when absent) */
   alphabet?: 'letters' | 'digits' | 'greek' | 'shapes';
 }

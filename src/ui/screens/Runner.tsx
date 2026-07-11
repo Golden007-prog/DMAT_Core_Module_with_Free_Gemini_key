@@ -4,6 +4,7 @@ import { sessionStore, useSession } from '../../state/sessionStore';
 import { useSettings } from '../../state/settingsStore';
 import { isAnswerCorrect } from '../../state/scoring';
 import type { FigureAnswer, LatinLetter, Question } from '../../engine/types';
+import { explainLatinQuestion } from '../../engine/latinSquares/explain';
 import TimerDisplay from '../components/TimerDisplay';
 import QuestionPalette from '../components/QuestionPalette';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -97,7 +98,9 @@ function QuestionElapsed() {
 function ShortcutsOverlay({ onClose, isLatin }: { onClose: () => void; isLatin: boolean }) {
   const rows: Array<[string, string]> = [
     ['1 – 3 / 1 – 5', 'Choose an answer option'],
-    ...(isLatin ? ([['A – E or 1 – 5', 'Choose the symbol']] as Array<[string, string]>) : []),
+    ...(isLatin
+      ? ([['A – E or 1 – 5', 'Pick the 1st – 5th symbol']] as Array<[string, string]>)
+      : []),
     ['Enter or →', 'Next question / submit'],
     ['←', 'Previous question (practice)'],
     ['F', 'Flag for review (practice)'],
@@ -402,6 +405,8 @@ export default function Runner() {
   const reveal = revealed.has(question.id);
   const currentAnswer = answers[question.id];
   const isCorrect = reveal && isAnswerCorrect(question, currentAnswer);
+  // latin explanations are re-rendered in the question's display alphabet
+  const latinExplain = question.type === 'latin' ? explainLatinQuestion(question) : null;
 
   return (
     <section className="mx-auto max-w-4xl pb-24 sm:pb-0">
@@ -511,14 +516,27 @@ export default function Runner() {
             </p>
             <details className="mt-2" open={!isCorrect}>
               <summary className="cursor-pointer text-sm font-medium">Explanation</summary>
-              <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-                {(question.type === 'figures'
-                  ? question.ruleDescriptions
-                  : question.explanationSteps
-                ).map((step, i) => (
-                  <li key={i}>{step}</li>
-                ))}
-              </ul>
+              {latinExplain?.summary && (
+                <p className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  {latinExplain.summary}
+                </p>
+              )}
+              {latinExplain ? (
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                  {latinExplain.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              ) : (
+                <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+                  {(question.type === 'figures'
+                    ? question.ruleDescriptions
+                    : question.explanationSteps
+                  ).map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ul>
+              )}
             </details>
           </div>
         )}

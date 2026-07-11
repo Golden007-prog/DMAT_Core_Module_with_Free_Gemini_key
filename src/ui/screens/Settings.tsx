@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSettings, DEFAULT_MODEL_CHAIN } from '../../state/settingsStore';
+import {
+  useSettings,
+  DEFAULT_MODEL_CHAIN,
+  RECOMMENDED_MODEL_PREFERENCE,
+} from '../../state/settingsStore';
 import { useThemeStore, type Theme } from '../../state/themeStore';
-import { listAvailableModels } from '../../ai/gemini';
+import { GeminiUnavailableError, listAvailableModels } from '../../ai/gemini';
 import { getUsageToday } from '../../ai/aiUsage';
 import { getStorage } from '../../storage/db';
 import { exportAll, importAll } from '../../storage/exportImport';
@@ -43,22 +47,73 @@ export default function Settings() {
     window.addEventListener('beforeinstallprompt', onPrompt);
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
+  /** every generateContent-capable model this key can see — not just the chain */
   const [foundModels, setFoundModels] = useState<string[]>([]);
+  const [keyError, setKeyError] = useState('');
+  const [keyDetail, setKeyDetail] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const usage = getUsageToday();
+
+  // getUsageToday() reads storage, so it needs a nudge to stay honest after an AI
+  // call in another tab (or in the runner) spends budget
+  const [usage, setUsage] = useState(getUsageToday);
+  useEffect(() => {
+    const sync = () => setUsage(getUsageToday());
+    window.addEventListener('focus', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
 
   const testKey = async () => {
     setKeyTest('testing');
     try {
-      const models = await listAvailableModels(settings.geminiKey);
-      const available = settings.modelChain.filter((m) => models.includes(m));
-      setFoundModels(available);
+      setFoundModels(await listAvailableModels(settings.geminiKey));
       setKeyTest('ok');
-    } catch {
+    } catch (e) {
       setFoundModels([]);
+      setKeyError(
+        e instanceof GeminiUnavailableError
+          ? e.message
+          : 'Could not check the key — you appear to be offline.',
+      );
+      setKeyDetail(e instanceof GeminiUnavailableError ? (e.apiMessage ?? '') : '');
       setKeyTest('fail');
     }
+  };
+
+  const recommendedChain = RECOMMENDED_MODEL_PREFERENCE.filter((m) =>
+    foundModels.includes(m),
+  ).slice(0, 3);
+
+  /** Chain entries the live model list does not contain. A model that 404s is the
+   *  single most common cause of "AI unavailable" on a perfectly good key, so it
+   *  is named outright rather than left as a grey dot in a list. */
+  const deadChain = keyTest === 'ok' ? settings.modelChain.filter((m) => !foundModels.includes(m)) : [];
+  // prefer the curated order; if this key sees none of them, its own list still beats a dead chain
+  const repairChain = recommendedChain.length > 0 ? recommendedChain : foundModels.slice(0, 3);
+
+  /** What the user is *typing*, which is not always a chain: select-all + delete
+   *  is the normal first move when retyping the field, and it must not persist
+   *  `modelChain: []` — an empty chain makes generateJson fail before it sends a
+   *  single request. The draft holds the raw text; only a non-empty parse reaches
+   *  the store, and blur snaps the box back to the chain actually in force so a
+   *  field left empty never misrepresents what the app will use. */
+  const [chainDraft, setChainDraft] = useState<string | null>(null);
+  const chainText = chainDraft ?? settings.modelChain.join(', ');
+
+  const editChain = (text: string) => {
+    setChainDraft(text);
+    const next = text.split(',').map((s) => s.trim()).filter(Boolean);
+    if (next.length > 0) settings.set('modelChain', next);
+  };
+
+  /** the buttons below set the chain wholesale — drop the draft so the box shows it */
+  const applyChain = (chain: string[]) => {
+    setChainDraft(null);
+    settings.set('modelChain', chain);
   };
 
   const doExport = async () => {
@@ -134,14 +189,17 @@ export default function Settings() {
         </div>
         {keyTest === 'ok' && (
           <p className="mt-2 text-sm text-success">
-            Key works.{' '}
-            {foundModels.length > 0
-              ? `Available from your chain: ${foundModels.join(', ')}.`
-              : 'None of the configured chain models were found — check the model names below.'}
+            Key accepted — {foundModels.length} models available. Honest caveat: this lists models,
+            it does not generate, so a project-level block can still surface on first use.
           </p>
         )}
         {keyTest === 'fail' && (
-          <p className="mt-2 text-sm text-error">Key rejected — double-check it in AI Studio.</p>
+          <>
+            <p className="mt-2 text-sm text-error">{keyError}</p>
+            {keyDetail && (
+              <p className="mt-1 font-mono text-xs text-zinc-500 dark:text-zinc-400">{keyDetail}</p>
+            )}
+          </>
         )}
         <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
           The key is stored in this browser and synced privately to your signed-in account (your own
@@ -170,25 +228,74 @@ export default function Settings() {
           <input
             id="model-chain"
             type="text"
-            value={settings.modelChain.join(', ')}
-            onChange={(e) =>
-              settings.set(
-                'modelChain',
-                e.target.value
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean),
-              )
-            }
+            value={chainText}
+            onChange={(e) => editChain(e.target.value)}
+            onBlur={() => setChainDraft(null)}
             className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
           />
-          <button
-            type="button"
-            onClick={() => settings.set('modelChain', DEFAULT_MODEL_CHAIN)}
-            className="mt-1 text-xs font-medium text-accent hover:underline dark:text-accent-dark"
-          >
-            Reset to default chain
-          </button>
+
+          {keyTest === 'ok' && deadChain.length > 0 && (
+            <div className="mt-2 rounded-lg border border-error/40 bg-error/5 p-3">
+              <p className="text-sm text-error">
+                {deadChain.length === 1 ? 'This model does not exist' : 'These models do not exist'} for
+                your key:{' '}
+                <span className="font-mono">{deadChain.join(', ')}</span>. That is enough to make AI
+                report itself unavailable.
+              </p>
+              {repairChain.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => applyChain(repairChain)}
+                  className="mt-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
+                >
+                  Fix chain → {repairChain.join(', ')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {keyTest === 'ok' && (
+            <ul className="mt-2 space-y-1">
+              {settings.modelChain.map((m) => {
+                const exists = foundModels.includes(m);
+                return (
+                  <li key={m} className="flex items-center gap-2 font-mono text-xs">
+                    <span
+                      aria-hidden
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        exists ? 'bg-success' : 'bg-zinc-300 dark:bg-zinc-600'
+                      }`}
+                    />
+                    <span className={exists ? '' : 'text-zinc-400 line-through dark:text-zinc-500'}>
+                      {m}
+                    </span>
+                    <span className="font-sans text-zinc-500 dark:text-zinc-400">
+                      {exists ? 'available' : 'not available for this key'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <div className="mt-1 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => applyChain(DEFAULT_MODEL_CHAIN)}
+              className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
+            >
+              Reset to default chain
+            </button>
+            {recommendedChain.length > 0 && (
+              <button
+                type="button"
+                onClick={() => applyChain(recommendedChain)}
+                className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
+              >
+                Use recommended chain ({recommendedChain.join(', ')})
+              </button>
+            )}
+          </div>
 
           <div className="mt-3">
             <label className="text-sm font-medium" htmlFor="budget">
@@ -214,7 +321,9 @@ export default function Settings() {
                   />
                 </div>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {usage} of {settings.aiDailyBudget} calls used today
+                  {usage >= settings.aiDailyBudget
+                    ? `Budget reached (${usage} of ${settings.aiDailyBudget}) — AI features use the built-in generator until tomorrow.`
+                    : `${usage} of ${settings.aiDailyBudget} calls used today`}
                 </p>
               </div>
             </div>

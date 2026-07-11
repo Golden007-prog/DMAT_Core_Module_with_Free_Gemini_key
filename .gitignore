@@ -8,6 +8,30 @@ test-results/
 *.tsbuildinfo
 .DS_Store
 
+# secrets — API keys live here, never publish
+.env
+.env.*
+!.env.example
+
+# Shell-quoting artefacts. An unquoted redirect or heredoc inside a `node -e`
+# one-liner makes the shell treat a fragment of the code as a filename, dropping
+# an empty file named e.g. `false)`, `{,`, `c[s]` or `console.log(` in the repo
+# root. Five of these reached this public repo once already. These patterns are
+# root-anchored so they can never hide a real source file under src/.
+#
+# Shape alone cannot catch every case — an artefact that happens to be a bare
+# identifier (`EquationQuestion`, `i`, `0`) is indistinguishable from a real
+# filename — so the standing rule matters more than the patterns: in this repo
+# never run `git add -A`. Use `git add -u` plus explicit paths.
+/*(*
+/*)*
+/*\[*
+/*]*
+/*{*
+/*}*
+/*`*
+/*$*
+
 # local tooling / assistant config — never publish
 .claude/
 .mcp.json

@@ -4,6 +4,7 @@ import { sessionStore, useSession } from '../../state/sessionStore';
 import { getStorage } from '../../storage/db';
 import { isAnswerCorrect } from '../../state/scoring';
 import type { FigureAnswer, LatinLetter, Question, Session } from '../../engine/types';
+import { explainLatinQuestion } from '../../engine/latinSquares/explain';
 import FigureQuestionView from '../questions/FigureQuestionView';
 import EquationQuestionView from '../questions/EquationQuestionView';
 import LatinQuestionView from '../questions/LatinQuestionView';
@@ -15,6 +16,8 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
   const answer = session.answers[question.id];
   const correct = isAnswerCorrect(question, answer);
   const timeMs = session.answerTimesMs[question.id];
+  // latin explanations are re-rendered in the question's display alphabet
+  const latinExplain = question.type === 'latin' ? explainLatinQuestion(question) : null;
 
   return (
     <article className="rounded-card border border-zinc-200 bg-surface p-4 shadow-card sm:p-6 dark:border-zinc-800 dark:bg-surface-dark-alt">
@@ -49,13 +52,27 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
 
       <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
         <h3 className="text-sm font-semibold">Explanation</h3>
-        <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
-          {(question.type === 'figures' ? question.ruleDescriptions : question.explanationSteps).map(
-            (step, i) => (
+        {latinExplain?.summary && (
+          <p className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+            {latinExplain.summary}
+          </p>
+        )}
+        {latinExplain ? (
+          <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+            {latinExplain.steps.map((step, i) => (
               <li key={i}>{step}</li>
-            ),
-          )}
-        </ul>
+            ))}
+          </ol>
+        ) : (
+          <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+            {(question.type === 'figures'
+              ? question.ruleDescriptions
+              : question.explanationSteps
+            ).map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ul>
+        )}
         {question.type === 'figures' && (
           <div className="mt-4 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-900">
             <SequencePlayer

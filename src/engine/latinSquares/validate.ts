@@ -59,5 +59,22 @@ export function validateLatinQuestion(q: LatinQuestion): ValidationResult {
 
   if (q.explanationSteps.length === 0) reasons.push('missing explanation steps');
 
+  // optional (absent on pre-explainChain sessions); when present it is what the
+  // learner actually reads, so it must land on the "?" with the stated letter
+  if (q.explainChain) {
+    if (q.explainChain.length !== q.explanationSteps.length) {
+      reasons.push('explainChain and explanationSteps disagree in length');
+    }
+    const last = q.explainChain[q.explainChain.length - 1];
+    if (
+      !last ||
+      last.row !== q.question.row ||
+      last.col !== q.question.col ||
+      last.letter !== q.solutionLetter
+    ) {
+      reasons.push('explainChain does not end on the "?" cell with the solution letter');
+    }
+  }
+
   return { ok: reasons.length === 0, reasons };
 }

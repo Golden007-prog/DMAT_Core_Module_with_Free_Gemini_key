@@ -36,6 +36,11 @@ export async function fetchAiEquationSet(
         schema: EQUATION_BATCH_SCHEMA,
         signal,
         dailyBudget: settings.aiDailyBudget,
+        // Bulk work, and salvageAiEquationSet re-validates every system against
+        // the same validator our own generator must pass — so a "cleverer" model
+        // buys nothing here, while thinking on a 20-system batch costs ~7,900
+        // tokens and either blows the output budget or the timeout.
+        thinkingBudget: 0,
       });
       const { questions, aiAccepted } = salvageAiEquationSet(
         payload,

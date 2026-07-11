@@ -4,11 +4,11 @@ import type { Grid, CellRef } from './solver';
 import {
   LETTERS,
   cloneGrid,
-  describeStep,
   greedyChainSolvesTarget,
   minimalForcedChain,
   targetDirect,
 } from './solver';
+import { buildExplainChain, formatStep } from './explain';
 import { LATIN_BANDS } from './difficulty';
 
 /** Uniform-enough random 5×5 Latin square: cyclic base + row/col/letter shuffles. */
@@ -91,13 +91,11 @@ export function generateLatinQuestion(difficulty: Difficulty, prng: Prng): Latin
 
     if (!accepted) continue;
 
-    // Build ordered explanations, applying each forced fill as we narrate it.
-    const walk = cloneGrid(grid);
-    const explanationSteps = accepted.chain.map((step, i) => {
-      const text = describeStep(walk, step, i === accepted!.chain.length - 1);
-      walk[step.row][step.col] = step.letter;
-      return text;
-    });
+    // The chain is stored as facts; the display alphabet is only chosen later
+    // (generateSet), so the string form is baked in the internal letters and the
+    // renderer re-formats explainChain in whatever alphabet the learner sees.
+    const explainChain = buildExplainChain(grid, accepted.chain);
+    const explanationSteps = explainChain.map((step) => formatStep(step, 'letters'));
 
     const givens = countGivens(grid);
     const ruleTags = [
@@ -118,6 +116,7 @@ export function generateLatinQuestion(difficulty: Difficulty, prng: Prng): Latin
       solutionLetter,
       inferenceDepth: accepted.depth,
       explanationSteps,
+      explainChain,
     };
   }
   throw new Error(`latin generation exhausted retries (${difficulty})`);
