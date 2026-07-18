@@ -33,6 +33,20 @@ export const RULE_TAG_LABELS: Record<string, string> = {
   'lat.hiddenSingle.row': 'Hidden singles in rows',
   'lat.hiddenSingle.col': 'Hidden singles in columns',
   'lat.clues.sparse': 'Sparse-clue grids',
+  // general academic module — topic areas
+  'gam.topic.mathematics': 'GAM · Mathematics',
+  'gam.topic.computational-sciences': 'GAM · Computational Sciences',
+  'gam.topic.natural-sciences': 'GAM · Natural Sciences',
+  'gam.topic.engineering': 'GAM · Engineering',
+  'gam.topic.business-administration': 'GAM · Business Administration',
+  'gam.topic.economics': 'GAM · Economics',
+  'gam.topic.social-sciences': 'GAM · Social Sciences',
+  'gam.topic.humanities': 'GAM · Humanities',
+  // general academic module — skills
+  'gam.skill.concept': 'GAM · Conceptual understanding',
+  'gam.skill.compute': 'GAM · Applying formulas',
+  'gam.skill.transfer': 'GAM · Transfer to new scenarios',
+  'gam.skill.read-chart': 'GAM · Reading charts & tables',
 };
 
 export function ruleTagLabel(tag: string): string {

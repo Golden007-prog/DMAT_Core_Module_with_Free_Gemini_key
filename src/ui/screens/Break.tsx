@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fullCoreStore, useFullCore, MODULE_BREAK_SECONDS } from '../../state/fullCoreStore';
 import { sessionStore } from '../../state/sessionStore';
@@ -32,8 +32,12 @@ export default function Break() {
 
   const nextSubtest = stages[stageIndex + 1];
   const isModuleBreak = fullCoreStore.getState().nextBreakSeconds() === MODULE_BREAK_SECONDS;
+  // once proceed() runs, atBreak flips false by design — the stray-visit
+  // redirect below must not stomp the /run navigation it just made
+  const proceeding = useRef(false);
 
   useEffect(() => {
+    if (proceeding.current) return;
     if (!active || !atBreak) navigate('/', { replace: true });
   }, [active, atBreak, navigate]);
 
@@ -44,6 +48,8 @@ export default function Break() {
   }, [active, atBreak]);
 
   const proceed = () => {
+    if (proceeding.current) return; // timer-zero and a click can race
+    proceeding.current = true;
     fullCoreStore.getState().nextStage();
     void sessionStore.getState().startNewSession(fullCoreStore.getState().stageConfig());
     navigate('/run');

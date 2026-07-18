@@ -1,4 +1,4 @@
-export type TrickSubtest = 'figures' | 'equations' | 'latin' | 'pacing' | 'mindset';
+export type TrickSubtest = 'figures' | 'equations' | 'latin' | 'gam' | 'pacing' | 'mindset';
 
 /** core = must know, sharp = competitive edge, elite = the last few points. */
 export type TrickLevel = 'core' | 'sharp' | 'elite';
@@ -1131,12 +1131,106 @@ An empty row still yields a forced cell.`,
     title: 'Under pressure, do the trained move — do not improvise',
     body: `The techniques here are only worth anything if they fire automatically when your heart rate is up. If you find yourself inventing a new approach mid-task in the exam, that is stress talking; fall back to the checklist — count, classify, solve, verify.`,
   },
+
+  /* --------------------- General Academic Module (GAM) -------------------- */
+  {
+    id: 'gam-passage-teaches-everything',
+    subtest: 'gam',
+    level: 'core',
+    title: 'The passage contains every fact you need — treat it as the only source',
+    body: `GAM questions are answerable from the passage alone; outside knowledge is at best a shortcut and at worst a trap, because distractors are built from plausible-sounding claims the passage never makes. When two options both "sound right", the tiebreaker is always: which one does the text actually say?`,
+    ruleTags: ['gam.skill.concept'],
+  },
+  {
+    id: 'gam-skim-structure-first',
+    subtest: 'gam',
+    level: 'core',
+    title: 'Skim the structure, read the questions, then re-read with purpose',
+    body: `First pass (≈1 minute): headings, bold terms, what each paragraph is about, where the formula and the table live. Then read the QUESTIONS. Only then re-read the paragraphs that matter, closely. Reading the whole passage deeply before seeing a single question means reading most of it twice.`,
+  },
+  {
+    id: 'gam-formula-is-given',
+    subtest: 'gam',
+    level: 'core',
+    title: 'Formulas are provided — the test is whether you can drive them',
+    body: `The real exam does not expect memorized formulas: the passage presents what you need, often in a small table. The skill being tested is disciplined substitution — identify each symbol's value from the text or table, substitute once, compute once. Practise reading a formula table as fast as you read prose.`,
+    ruleTags: ['gam.skill.compute'],
+  },
+  {
+    id: 'gam-no-notes-arithmetic',
+    subtest: 'gam',
+    level: 'core',
+    title: 'No notes: structure your mental arithmetic',
+    body: `You cannot write anything down, so arithmetic must be staged: simplify BEFORE multiplying (cancel common factors, pull out powers of ten), keep one intermediate number in words ("twelve hundred"), and round-check the magnitude at the end. The numbers in GAM tasks are chosen to be clean — if yours are getting ugly, you took a wrong turn.`,
+    ruleTags: ['gam.skill.compute'],
+  },
+  {
+    id: 'gam-units-are-a-free-check',
+    subtest: 'gam',
+    level: 'sharp',
+    title: 'Units are a free answer-checker',
+    body: `Carry units through every computation: if the question asks for euros and your expression produces euros per unit, you swapped a ratio. Distractors are regularly built from exactly these swaps — inverted ratios, per-unit vs total, percentage vs absolute — so a five-second unit check eliminates them without redoing the math.`,
+    ruleTags: ['gam.skill.compute'],
+  },
+  {
+    id: 'gam-eliminate-on-four',
+    subtest: 'gam',
+    level: 'core',
+    title: 'Four options: eliminate two fast, then decide slowly once',
+    body: `Almost every GAM item has two options you can kill quickly — a sign error, an over-generalization ("always", "never"), or a claim the passage contradicts outright. Do that first. A 50/50 decision made carefully beats a 25% blind guess, and blanks score exactly zero, so ALWAYS answer.`,
+  },
+  {
+    id: 'gam-distractors-are-misconceptions',
+    subtest: 'gam',
+    level: 'sharp',
+    title: 'Wrong options are engineered misconceptions — name the error',
+    body: `Each distractor encodes a specific mistake: the inverted formula, the swapped condition, the conclusion that overshoots the evidence. When you can say WHY an option is wrong ("that is the ratio upside down"), you are certain; when you can only say it "feels wrong", re-read the relevant sentence before committing.`,
+  },
+  {
+    id: 'gam-chart-axes-first',
+    subtest: 'gam',
+    level: 'core',
+    title: 'Charts: axes and units before lines',
+    body: `Before interpreting any figure, read both axis labels and their units aloud in your head. Most chart-reading errors are axis errors — reading a quantity where the chart shows a rate, or a total where it shows a per-period value. Then find the specific feature the question names (an intersection, a plateau, a slope) rather than describing the whole picture.`,
+    ruleTags: ['gam.skill.read-chart'],
+  },
+  {
+    id: 'gam-time-budget',
+    subtest: 'gam',
+    level: 'core',
+    title: 'Budget ≈2.5–3 minutes per question, reading included',
+    body: `90 minutes for roughly 24–34 questions means each passage block gets about 15–20 minutes: a few minutes of reading buys you 6–8 questions. If a single computation passes the two-minute mark, pick the most defensible remaining option, and move — the next passage starts from zero and pays the same points.`,
+  },
+  {
+    id: 'gam-transfer-questions',
+    subtest: 'gam',
+    level: 'sharp',
+    title: 'Transfer questions: map the scenario onto the passage, term by term',
+    body: `When a question introduces a new scenario (a different company, a new substance), it is testing whether you can identify WHICH concept from the passage the scenario instantiates. Explicitly match: who plays the role of X, what plays the role of Y. The wrong options map the scenario onto the neighbouring concept — the one that shares a paragraph with the right one.`,
+    ruleTags: ['gam.skill.transfer'],
+  },
+  {
+    id: 'gam-negations-and-extremes',
+    subtest: 'gam',
+    level: 'sharp',
+    title: 'Read stems twice when they contain NOT, EXCEPT, or "most"',
+    body: `A stem asking which statement is NOT supported inverts every instinct you have trained on the other questions, and superlatives ("most elastic", "furthest") mean ranking all four options, not verifying one. Slow down exactly there — these stems are where fast readers donate points.`,
+  },
+  {
+    id: 'gam-anchor-answers-in-text',
+    subtest: 'gam',
+    level: 'elite',
+    title: 'Before committing, point at the sentence',
+    body: `For conceptual questions, force yourself to locate the specific sentence that makes your option true. If you cannot point at it, you are pattern-matching on vocabulary — which is precisely what the best distractor in the set was built to reward. This one habit converts "usually right" into "reliably right".`,
+    ruleTags: ['gam.skill.concept'],
+  },
 ];
 
 export const TRICK_SUBTEST_LABELS: Record<TrickSubtest, string> = {
   figures: 'Figures',
   equations: 'Equations',
   latin: 'Latin Squares',
+  gam: 'General Academic Module',
   pacing: 'Pacing & exam craft',
   mindset: 'Mindset & method',
 };

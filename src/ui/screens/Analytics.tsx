@@ -12,7 +12,8 @@ import WeaknessBars from '../charts/WeaknessBars';
 import PracticeHeatmap from '../charts/PracticeHeatmap';
 import CoachCard from '../components/CoachCard';
 import { formatMs, formatPercent } from '../format';
-import type { Difficulty, SubtestType } from '../../engine/types';
+import type { Difficulty, GamTopicArea, SubtestType } from '../../engine/types';
+import { GAM_TOPIC_LABELS } from '../gamLabels';
 
 const SUBTEST_NAMES: Record<SubtestType, string> = {
   figures: 'Figures',
@@ -59,7 +60,8 @@ export default function Analytics() {
 
   const timeSeries: LineSeries[] = useMemo(() => {
     const points = scored
-      .filter((s) => s.score!.avgTimePerQuestionMs > 0)
+      // gam runs on its own ~160 s budget — charted separately below
+      .filter((s) => s.subtest !== 'gam' && s.score!.avgTimePerQuestionMs > 0)
       .map((s) => ({
         x: s.createdAt,
         y: s.score!.avgTimePerQuestionMs / 1000,
@@ -69,6 +71,38 @@ export default function Analytics() {
       ? [{ key: 'time', name: 'Avg time per question', color: pal.series.equations, points }]
       : [];
   }, [scored, pal]);
+
+  const gamTimeSeries: LineSeries[] = useMemo(() => {
+    const points = scored
+      .filter((s) => s.subtest === 'gam' && s.score!.avgTimePerQuestionMs > 0)
+      .map((s) => ({
+        x: s.createdAt,
+        y: s.score!.avgTimePerQuestionMs / 1000,
+        label: `${new Date(s.createdAt).toLocaleDateString()} · ${Math.round(s.score!.avgTimePerQuestionMs / 1000)} s/question incl. reading`,
+      }));
+    return points.length > 0
+      ? [{ key: 'gam-time', name: 'Avg time per GAM question', color: pal.series.gam, points }]
+      : [];
+  }, [scored, pal]);
+
+  /** GAM accuracy per topic area, weakest first (≥3 attempts to show). */
+  const gamTopicRows = useMemo(() => {
+    const byTag = new Map<string, { correct: number; total: number }>();
+    for (const a of attempts) {
+      if (a.type !== 'gam') continue;
+      for (const tag of a.ruleTags) {
+        if (!tag.startsWith('gam.topic.')) continue;
+        const t = byTag.get(tag) ?? { correct: 0, total: 0 };
+        t.total++;
+        if (a.correct) t.correct++;
+        byTag.set(tag, t);
+      }
+    }
+    return [...byTag.entries()]
+      .filter(([, v]) => v.total >= 3)
+      .map(([tag, v]) => ({ tag, ...v }))
+      .sort((a, b) => a.correct / a.total - b.correct / b.total);
+  }, [attempts]);
 
   const diffCells = useMemo(() => {
     const byDiff = new Map<Difficulty, { correct: number; total: number }>();
@@ -237,6 +271,65 @@ export default function Analytics() {
           </div>
         )}
       </div>
+
+      {(gamTopicRows.length > 0 || gamTimeSeries.length > 0) && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+            <h2 className="mb-1 font-semibold">GAM — accuracy by topic area</h2>
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+              Weakest first, after 3+ answered questions per area.
+            </p>
+            {gamTopicRows.length > 0 ? (
+              <>
+                <WeaknessBars rows={gamTopicRows} />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {gamTopicRows.slice(0, 2).map((row) => {
+                    const area = row.tag.replace('gam.topic.', '') as GamTopicArea;
+                    return (
+                      <button
+                        key={row.tag}
+                        type="button"
+                        onClick={() => {
+                          void sessionStore.getState().startNewSession({
+                            mode: 'practice',
+                            subtest: 'gam',
+                            difficulty: 'mixed',
+                            questionCount: 0,
+                            seed: 0,
+                            gamTopicAreas: [area],
+                            gamPassageCount: 1,
+                          });
+                          navigate('/run');
+                        }}
+                        className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
+                      >
+                        Drill {GAM_TOPIC_LABELS[area]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Answer a few GAM passages and the per-area picture appears here.
+              </p>
+            )}
+          </div>
+          {gamTimeSeries.length > 0 && (
+            <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+              <h2 className="mb-3 font-semibold">GAM pacing vs the ≈160 s budget</h2>
+              <LineChart
+                series={gamTimeSeries}
+                yDomain={[0, 320]}
+                yTicks={[0, 80, 160, 240, 320]}
+                yFormat={(v) => `${v}s`}
+                refLineY={160}
+                refLineLabel="160 s incl. reading"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
         <h2 className="mb-1 font-semibold">Weakest rule types</h2>

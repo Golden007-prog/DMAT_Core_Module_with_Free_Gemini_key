@@ -11,6 +11,7 @@ const MIN_PER_SUBTEST: Record<TrickSubtest, number> = {
   figures: 25,
   equations: 25,
   latin: 25,
+  gam: 10,
   pacing: 12,
   mindset: 8,
 };

@@ -316,6 +316,31 @@ export default function Home() {
         </button>
       </div>
 
+      <div className="mt-6 rounded-card border-2 border-accent/40 bg-surface p-6 shadow-card dark:border-accent-dark/40 dark:bg-surface-dark-alt">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">
+              New: General Academic Module{' '}
+              <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white align-middle">
+                SoSe 2027
+              </span>
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-zinc-600 dark:text-zinc-300">
+              The dMAT Subject Module for the India/APS requirement: passage-based questions across
+              eight academic fields. Topic drills, timed sets, the full 90:00 exam, and the complete
+              3.5-hour dMAT simulation.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/gam')}
+            className="rounded-xl bg-accent px-6 py-3 font-semibold text-white transition-colors hover:bg-accent-hover"
+          >
+            Open GAM practice
+          </button>
+        </div>
+      </div>
+
       <div className="mt-6 rounded-card border-2 border-accent/30 bg-gradient-to-r from-accent-tint/60 to-surface p-6 shadow-card dark:border-accent-dark/30 dark:from-accent/10 dark:to-surface-dark-alt">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

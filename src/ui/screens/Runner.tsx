@@ -611,6 +611,11 @@ export default function Runner() {
               answeredIds={new Set(Object.keys(answers))}
               flaggedIds={new Set(session.flagged)}
               questionIds={session.questions.map((q) => q.id)}
+              groupKeys={
+                session.subtest === 'gam'
+                  ? session.questions.map((q) => (q.type === 'gam' ? q.passageId : ''))
+                  : undefined
+              }
               onJump={(i) => sessionStore.getState().goTo(i)}
             />
           </div>

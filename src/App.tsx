@@ -16,6 +16,7 @@ import Footer from './ui/shell/Footer';
 import ToastHost from './ui/components/Toast';
 import Home from './ui/screens/Home';
 import GamHub from './ui/screens/GamHub';
+import DmatInfo from './ui/screens/DmatInfo';
 import Runner from './ui/screens/Runner';
 import Results from './ui/screens/Results';
 import Review from './ui/screens/Review';
@@ -137,6 +138,7 @@ export default function App() {
         {bootstrapped && (
           <Routes>
             <Route path="/welcome" element={<Landing />} />
+            <Route path="/dmat-info" element={<DmatInfo />} />
             <Route path="/" element={<AuthGate><Home /></AuthGate>} />
             <Route path="/gam" element={<AuthGate><GamHub /></AuthGate>} />
             <Route path="/run" element={<AuthGate><Runner /></AuthGate>} />

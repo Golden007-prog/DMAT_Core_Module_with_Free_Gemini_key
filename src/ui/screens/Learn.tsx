@@ -63,6 +63,7 @@ const SUBTEST_FILTERS: Array<TrickSubtest | 'all'> = [
   'figures',
   'equations',
   'latin',
+  'gam',
   'pacing',
   'mindset',
 ];
