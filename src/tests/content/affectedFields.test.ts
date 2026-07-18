@@ -36,8 +36,17 @@ describe('checkField', () => {
     expect(checkField('Tourism Management').verdict).toBe('separate-assessment');
   });
 
-  it('never clears an unknown degree — verdict is not-found, not "safe"', () => {
-    const r = checkField('Bachelor of Fine Arts');
+  it('never clears a degree as "safe" — Fine Arts resolves to the official Arts caveat', () => {
+    // With the full v1.0 list, "Arts, except Economics where listed above"
+    // (PDF section 6) is present, so "Bachelor of Fine Arts" legitimately
+    // matches the Arts entry — which is 'not-automatic', never a clearance.
+    expect(checkField('Bachelor of Fine Arts').verdict).toBe('not-automatic');
+  });
+
+  it('a degree absent from the official list is not-found, not "safe"', () => {
+    // "Bachelor of Music" appears nowhere in the v1.0 PDF (no "music" token,
+    // no substring collision), so the checker returns not-found with no guesses.
+    const r = checkField('Bachelor of Music');
     expect(r.verdict).toBe('not-found');
     expect(r.matches).toEqual([]);
   });

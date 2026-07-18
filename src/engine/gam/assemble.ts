@@ -40,6 +40,19 @@ function toDoc(p: GamPassage): GamPassageDoc {
   return doc;
 }
 
+/** Seed bank + validated extras (AI/pool cache), deduplicated by id — the
+ *  seed passage always wins an id collision. Pure. */
+export function mergeGamBank(seed: GamPassage[], extras: GamPassage[]): GamPassage[] {
+  const ids = new Set(seed.map((p) => p.id));
+  const merged = [...seed];
+  for (const p of extras) {
+    if (ids.has(p.id)) continue;
+    ids.add(p.id);
+    merged.push(p);
+  }
+  return merged;
+}
+
 /** Per-session option shuffle: same stem must not always carry the answer in
  *  the same slot across sessions. Deterministic from (seed, passage, question);
  *  authored order is kept when the wording is order-dependent. */
@@ -54,13 +67,22 @@ function shuffleOptions(q: GamQuestion, seed: number, pIdx: number, qIdx: number
 
 /** Deterministic, seeded passage draw with balanced topic-area spread:
  *  areas rotate round-robin (seed-shuffled rotation), passages draw randomly
- *  within an area, and no passage repeats. Pure in (cfg, bank). */
-export function assembleGamSet(cfg: GamAssembleConfig, bank: GamPassage[]): AssembledGamSet {
+ *  within an area, and no passage repeats. `pinned` passages (e.g. a freshly
+ *  AI-generated one) take the first slots unconditionally. Pure in its args. */
+export function assembleGamSet(
+  cfg: GamAssembleConfig,
+  bank: GamPassage[],
+  pinned: GamPassage[] = [],
+): AssembledGamSet {
   const prng = createPrng(deriveSeed(cfg.seed, 0x9a7));
   const areaFilter =
     cfg.topicAreas && cfg.topicAreas.length > 0 ? new Set(cfg.topicAreas) : null;
 
+  const pinnedList = pinned.slice(0, cfg.passageCount);
+  const pinnedIds = new Set(pinnedList.map((p) => p.id));
+
   const candidates = bank
+    .filter((p) => !pinnedIds.has(p.id))
     .filter((p) => (areaFilter ? areaFilter.has(p.topicArea) : true))
     .filter((p) =>
       !cfg.difficulty || cfg.difficulty === 'mixed' ? true : p.difficulty === cfg.difficulty,
@@ -68,7 +90,7 @@ export function assembleGamSet(cfg: GamAssembleConfig, bank: GamPassage[]): Asse
     // stable order regardless of bank file/load order → same seed, same set
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  if (candidates.length === 0) {
+  if (candidates.length === 0 && pinnedList.length === 0) {
     throw new Error('gam assembly: no passages match the requested filter');
   }
 
@@ -80,10 +102,10 @@ export function assembleGamSet(cfg: GamAssembleConfig, bank: GamPassage[]): Asse
   }
   const areaRotation = prng.shuffle([...byArea.keys()]);
 
-  const picked: GamPassage[] = [];
-  const want = Math.min(cfg.passageCount, candidates.length);
+  const picked: GamPassage[] = [...pinnedList];
+  const want = Math.min(cfg.passageCount, candidates.length + pinnedList.length);
   let rotationIdx = 0;
-  while (picked.length < want) {
+  while (picked.length < want && areaRotation.length > 0) {
     const area = areaRotation[rotationIdx % areaRotation.length];
     rotationIdx++;
     const pool = byArea.get(area)!;

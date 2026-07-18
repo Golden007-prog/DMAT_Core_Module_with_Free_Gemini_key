@@ -276,6 +276,29 @@ describe('assembleGamSet', () => {
       assembleGamSet({ seed: 1, passageCount: 1, topicAreas: ['economics'], difficulty: 'hard' }, bank),
     ).toThrow();
   });
+
+  it('pins a provided passage into the draw unconditionally', () => {
+    const fresh = makePassage('fresh-pin', 'economics', 5);
+    const set = assembleGamSet(
+      { seed: 3, passageCount: 2, topicAreas: ['economics'] },
+      bank,
+      [fresh],
+    );
+    expect(set.passages[0].id).toBe('fresh-pin');
+    expect(set.passages).toHaveLength(2);
+    // pinned questions still get the per-session option shuffle treatment
+    for (const q of set.questions.filter((x) => x.passageId === 'fresh-pin')) {
+      const original = fresh.questions.find((o) => o.id === q.id)!;
+      expect(q.options[q.correct]).toBe(original.options[original.correct]);
+    }
+    // a pinned passage alone also satisfies an otherwise-empty filter
+    const solo = assembleGamSet(
+      { seed: 3, passageCount: 1, topicAreas: ['economics'], difficulty: 'hard' },
+      bank,
+      [{ ...fresh, difficulty: 'hard' }],
+    );
+    expect(solo.passages).toHaveLength(1);
+  });
 });
 
 describe('assembleGamExam', () => {

@@ -1,5 +1,12 @@
 import { createStore, useStore, type StoreApi } from 'zustand';
-import type { GamPassage, GamPassageDoc, Question, Session } from '../engine/types';
+import type {
+  Difficulty,
+  GamPassage,
+  GamPassageDoc,
+  GamTopicArea,
+  Question,
+  Session,
+} from '../engine/types';
 import {
   generateQuestionAt as engineGenerateQuestionAt,
   validateQuestion,
@@ -8,9 +15,11 @@ import {
 import {
   assembleGamExam,
   assembleGamSet,
+  mergeGamBank,
   GAM_EXAM,
   GAM_MS_PER_QUESTION,
 } from '../engine/gam/assemble';
+import { validateGamPassage } from '../engine/gam/validate';
 import { loadGamBank } from '../content/gam';
 import {
   fetchCachedSet as cloudFetchCachedSet,
@@ -22,6 +31,7 @@ import { isAnswerCorrect } from './scoring';
 import { createTimer, realClock, type Timer } from './timer';
 import { getStorage, type StorageAPI } from '../storage/db';
 import { fetchAiEquationSet } from '../ai/equationBatch';
+import { fetchAiGamPassage } from '../ai/gamBatch';
 
 export interface SessionDeps {
   timer: Timer;
@@ -42,6 +52,13 @@ export interface SessionDeps {
   pushGeneratedSet: (cfg: GenerateSetConfig, questions: Question[], source: string) => Promise<void>;
   /** lazy GAM passage bank (own chunk); injectable for tests */
   loadGamBank: () => Promise<GamPassage[]>;
+  /** locally cached AI/pool passages — merged into the bank, re-validated (R6) */
+  loadGamExtras: () => Promise<GamPassage[]>;
+  /** optional fresh AI passage for focused practice drills; null → bank only */
+  aiGamPassage: (
+    opts: { topicArea: GamTopicArea; difficulty: Difficulty },
+    signal: AbortSignal,
+  ) => Promise<GamPassage | null>;
 }
 
 export interface SessionStore {
@@ -59,7 +76,7 @@ export interface SessionStore {
   startSessionFromQuestions(
     questions: Question[],
     meta: Pick<SessionConfig, 'mode' | 'subtest' | 'difficulty'>,
-    opts?: { gamPassages?: GamPassageDoc[] },
+    opts?: { gamPassages?: GamPassageDoc[]; durationMs?: number },
   ): Promise<void>;
   cancelGeneration(): void;
   start(): void;
@@ -88,6 +105,12 @@ const defaultDeps: SessionDeps = {
   fetchCachedSet: cloudFetchCachedSet,
   pushGeneratedSet: cloudPushGeneratedSet,
   loadGamBank,
+  loadGamExtras: async () => {
+    const storage = await getStorage();
+    const rows = await storage.gamPassagesAll().catch(() => []);
+    return rows.map((r) => r.passage).filter((p) => validateGamPassage(p).ok);
+  },
+  aiGamPassage: (opts, signal) => fetchAiGamPassage({ ...opts, signal }),
 };
 
 export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreApi<SessionStore> {
@@ -175,8 +198,29 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
             questionShownAt: null,
           });
 
-          const bank = await deps.loadGamBank();
+          const seedBank = await deps.loadGamBank();
+          const extras = await deps.loadGamExtras().catch(() => []);
           if (abort.signal.aborted || get().session?.id !== sid) return;
+          const bank = mergeGamBank(seedBank, extras);
+
+          // focused practice drill with a key: try one fresh AI passage and
+          // pin it into the draw — an optional enhancement, never a gate
+          // (R7); failures fall back to the bank silently
+          let pinned: GamPassage[] = [];
+          if (
+            cfgIn.mode === 'practice' &&
+            cfgIn.gamTopicAreas?.length === 1 &&
+            cfgIn.difficulty !== 'mixed'
+          ) {
+            const fresh = await deps
+              .aiGamPassage(
+                { topicArea: cfgIn.gamTopicAreas[0], difficulty: cfgIn.difficulty },
+                abort.signal,
+              )
+              .catch(() => null);
+            if (abort.signal.aborted || get().session?.id !== sid) return;
+            if (fresh && validateGamPassage(fresh).ok) pinned = [fresh];
+          }
 
           // exam without explicit shape → official-style blueprint draw
           const exam =
@@ -191,6 +235,7 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
                   difficulty: cfgIn.difficulty,
                 },
                 bank,
+                pinned,
               );
           for (const q of assembled.questions) {
             const check = validateQuestion(q); // R6: bank content is not trusted blindly
@@ -329,7 +374,8 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
           seed: deps.newSeed(),
           // gam pacing includes passage reading time — 75 s/task is far too short
           durationMs:
-            meta.subtest === 'gam' ? questions.length * GAM_MS_PER_QUESTION : undefined,
+            opts?.durationMs ??
+            (meta.subtest === 'gam' ? questions.length * GAM_MS_PER_QUESTION : undefined),
         };
         let session = createSession(cfg);
         if (opts?.gamPassages?.length) session = { ...session, gamPassages: opts.gamPassages };

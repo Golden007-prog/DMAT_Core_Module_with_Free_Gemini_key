@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/sitemap.xml

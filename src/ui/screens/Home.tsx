@@ -8,6 +8,13 @@ import type { Difficulty, SubtestType } from '../../engine/types';
 import { LATIN_ALPHABETS, ALPHABET_IDS } from '../../engine/latinSquares/alphabets';
 import { formatPercent, formatMs } from '../format';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { nextIndiaTestDate } from '../../content/gamInfo';
+
+/** Days until the next official India test date; null once it has passed. */
+function daysToIndiaTest(): number | null {
+  const days = Math.ceil((nextIndiaTestDate().getTime() - Date.now()) / 86_400_000);
+  return days >= 0 ? days : null;
+}
 
 const SUBTESTS: Array<{
   key: SubtestType;
@@ -106,11 +113,20 @@ export default function Home() {
     <section>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Practice the dMAT Core Module</h1>
+          <h1 className="text-2xl font-bold">Practice the dMAT</h1>
           <p className="mt-1 text-zinc-600 dark:text-zinc-300">
             Unlimited, freshly generated tasks in the official formats — with real exam timing.
           </p>
         </div>
+        {daysToIndiaTest() !== null && (
+          <Link
+            to="/dmat-info"
+            className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-tint/50 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark/30 dark:bg-accent/10 dark:text-accent-dark"
+            title="Next official India test date: 26 September 2026"
+          >
+            <span className="tabular-nums">{daysToIndiaTest()}</span> days to the India test date
+          </Link>
+        )}
         {settings.dailyGoal > 0 && (
           <div
             className="flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 dark:border-zinc-800"
@@ -155,7 +171,10 @@ export default function Home() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3" role="radiogroup" aria-label="Choose a subtest">
+      <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        Core Module — three subtests
+      </h2>
+      <div className="mt-2 grid gap-4 sm:grid-cols-3" role="radiogroup" aria-label="Choose a subtest">
         {SUBTESTS.map((s) => {
           const stats = statsFor(s.key);
           const active = subtest === s.key;

@@ -8,6 +8,7 @@ import {
   weekKey,
   LEAGUES,
   type LeaderboardRow,
+  type RankingModule,
 } from '../../cloud/rankings';
 import { POINTS_PER_CORRECT, MIXED_SET_MULTIPLIER, computeSessionPoints } from '../../state/points';
 import { computeAchievements } from '../../state/achievements';
@@ -48,6 +49,7 @@ export default function Rankings() {
   const [week, setWeek] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'this' | 'last'>('this');
+  const [module, setModule] = useState<RankingModule>('combined');
   const history = useHistory();
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function Rankings() {
     let cancelled = false;
     setLoading(true);
     const target = tab === 'this' ? weekKey() : shiftedWeekKey(-1);
-    void fetchWeeklyLeaderboard(100, target).then((r) => {
+    void fetchWeeklyLeaderboard(100, target, module).then((r) => {
       if (cancelled) return;
       setRows(r.rows);
       setMe(r.me);
@@ -69,7 +71,7 @@ export default function Rankings() {
     return () => {
       cancelled = true;
     };
-  }, [tab]);
+  }, [tab, module]);
 
   const upgrade = me ? nextLeague(me.points) : LEAGUES[1];
 
@@ -114,6 +116,30 @@ export default function Rankings() {
             aria-pressed={tab === value}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
               tab === value
+                ? 'bg-accent text-white dark:bg-accent-dark'
+                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {(
+          [
+            ['core', 'Core Module'],
+            ['gam', 'General Academic'],
+            ['combined', 'Combined'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setModule(value)}
+            aria-pressed={module === value}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+              module === value
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
             }`}

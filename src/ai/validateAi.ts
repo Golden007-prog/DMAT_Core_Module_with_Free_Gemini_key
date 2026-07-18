@@ -1,6 +1,15 @@
-import type { Difficulty, EquationQuestion, LatinLetter, Question } from '../engine/types';
+import type {
+  Difficulty,
+  EquationQuestion,
+  GamPassage,
+  GamQuestion,
+  GamTopicArea,
+  LatinLetter,
+  Question,
+} from '../engine/types';
 import type { LatinAlphabetId } from '../engine/latinSquares/alphabets';
 import { glyphFor } from '../engine/latinSquares/alphabets';
+import { validateGamPassage } from '../engine/gam/validate';
 import { parseEquation, validateEquationQuestion } from '../engine/equations/validate';
 import type { LinearEq } from '../engine/equations/solver';
 import { countSolutions } from '../engine/equations/solver';
@@ -441,4 +450,138 @@ export function salvageAiEquationSet(
   for (let i = aiAccepted; i < count; i++) questions.push(deterministicFallback(i));
 
   return { questions, aiAccepted, rejects };
+}
+
+/* ---------------------- G4: GAM passage firewall -------------------------- */
+
+/** A model may put a figure placeholder in any text field. AI passages ship
+ *  without figures, so a surviving `{{fig:…}}` would only ever fail to resolve —
+ *  strip it (loosely, not just the strict slug form) before sanitising. */
+const GAM_FIG_PLACEHOLDER = /\{\{\s*fig:[^}]*\}\}/gi;
+
+/** Read → strip figure refs → sanitise, the same firewall order the other
+ *  subtests use: stripping first, the render firewall last. */
+function gamText(value: unknown): string {
+  return sanitizePlainText((typeof value === 'string' ? value : '').replace(GAM_FIG_PLACEHOLDER, ' '));
+}
+
+function toKebabId(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+const GAM_SKILLS: readonly string[] = ['concept', 'compute', 'transfer'];
+const DIFFICULTIES: readonly string[] = ['easy', 'medium', 'hard'];
+
+/** Eight-word shingles of a passage, normalised so formatting differences
+ *  (the seed bank is full of **bold** and $math$ the candidate has already had
+ *  stripped) cannot hide a copy — both sides run through sanitizePlainText and
+ *  are lower-cased before shingling. */
+function eightGrams(text: string): string[] {
+  const words = sanitizePlainText(text).toLowerCase().replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const grams: string[] = [];
+  for (let i = 0; i + 8 <= words.length; i++) grams.push(words.slice(i, i + 8).join(' '));
+  return grams;
+}
+
+/** True when the candidate is too close to a seed passage: it shares ≥3 distinct
+ *  8-grams with any one seed, or its title case-insensitively equals a seed's.
+ *  Three exact eight-word overlaps with a single passage is a strong copy signal
+ *  that original prose effectively never trips. */
+function overlapsSeedBank(
+  passageMarkdown: string,
+  title: string,
+  seedBank: { title: string; passageMarkdown: string }[],
+): boolean {
+  const normTitle = title.trim().toLowerCase();
+  const candidate = new Set(eightGrams(passageMarkdown));
+  for (const seed of seedBank) {
+    if (normTitle.length > 0 && seed.title.trim().toLowerCase() === normTitle) return true;
+    const seedGrams = new Set(eightGrams(seed.passageMarkdown));
+    let shared = 0;
+    for (const g of candidate) {
+      if (seedGrams.has(g) && ++shared >= 3) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * G4 firewall: turn a model's GamPassage-shaped payload into a validated
+ * GamPassage, or null (R7 — AI never gates; the caller falls back to the seed /
+ * community bank).
+ *
+ * topicArea and difficulty are stamped from the caller's request, never trusted
+ * from the model — the caller asked for a specific area, and the whole passage
+ * exists to serve it. The model's per-question difficulty IS trusted (it knows
+ * which of its own questions are harder), falling back to the passage difficulty.
+ *
+ * Beyond `validateGamPassage` (the same validator the seed bank must pass) this
+ * adds one check the validator cannot: an 8-gram overlap against the real seed
+ * bank, so the model cannot pad the pool by lightly re-wording a seed passage.
+ */
+export function salvageGamPassage(
+  payload: unknown,
+  topicArea: GamTopicArea,
+  difficulty: Difficulty,
+  seedBank: { title: string; passageMarkdown: string }[],
+): GamPassage | null {
+  const raw = record(payload);
+  if (!raw) return null;
+
+  const id =
+    toKebabId(typeof raw.id === 'string' ? raw.id : '') ||
+    toKebabId(typeof raw.title === 'string' ? raw.title : '') ||
+    topicArea;
+
+  const questions: GamQuestion[] = [];
+  for (const entry of Array.isArray(raw.questions) ? raw.questions : []) {
+    const q = record(entry);
+    if (!q) continue;
+    const skillRaw = String(q.skill);
+    const skill = GAM_SKILLS.includes(skillRaw) ? skillRaw : 'concept';
+    const diffRaw = String(q.difficulty);
+    const qDifficulty = DIFFICULTIES.includes(diffRaw) ? (diffRaw as Difficulty) : difficulty;
+    const options = (Array.isArray(q.options) ? q.options.map(gamText) : []) as [
+      string,
+      string,
+      string,
+      string,
+    ];
+    questions.push({
+      id: `${id}-q${questions.length + 1}`,
+      type: 'gam',
+      passageId: id,
+      difficulty: qDifficulty,
+      seed: 0,
+      // a bad correctIndex (out of 0..3, or absent) stays out of range on purpose:
+      // validateGamQuestion rejects it, which is the correct outcome
+      stem: gamText(q.stem),
+      options,
+      correct: Math.round(finiteNumber(q.correctIndex, -1)) as 0 | 1 | 2 | 3,
+      explanation: gamText(q.explanation),
+      skillTags: [`gam.skill.${skill}`],
+      ruleTags: [`gam.topic.${topicArea}`, `gam.skill.${skill}`],
+    });
+  }
+
+  const passage: GamPassage = {
+    id,
+    topicArea,
+    title: gamText(raw.title),
+    // clamped, not rejected — estimatedMinutes is a display hint, so a silly value
+    // should not throw away an otherwise good passage
+    estimatedMinutes: Math.min(25, Math.max(4, Math.round(finiteNumber(raw.estimatedMinutes, 15)))),
+    difficulty,
+    source: 'ai+validated',
+    passageMarkdown: gamText(raw.passageMarkdown),
+    questions,
+  };
+
+  if (!validateGamPassage(passage).ok) return null;
+  if (overlapsSeedBank(passage.passageMarkdown, passage.title, seedBank)) return null;
+  return passage;
 }

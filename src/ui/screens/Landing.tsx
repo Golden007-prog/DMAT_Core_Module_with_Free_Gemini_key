@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../cloud/authStore';
 import { cloudEnabled } from '../../cloud/supabaseClient';
 
@@ -16,20 +16,67 @@ function GoogleIcon() {
 
 const FEATURES = [
   {
-    title: 'All three Core Module subtests',
-    body: 'Figure Sequences, Mathematical Equations, and Latin Squares in the official format — 20 tasks in 25:00, single choice, no note-taking.',
+    title: 'The complete dMAT, not just half of it',
+    body: 'All three Core Module subtests plus the General Academic Module: passage-based questions across eight academic fields, a full 90:00 GAM exam, and the entire 3.5-hour dMAT simulation with the official 30-minute module break.',
   },
   {
     title: 'Unlimited validated questions',
-    body: 'Every task is freshly generated and machine-proven: exactly one correct answer, plausible distractors, solvable under the official rule system.',
+    body: 'Every Core task is freshly generated and machine-proven: exactly one correct answer, plausible distractors, solvable under the official rule system. Every GAM passage ships only after an independent answer-key verification.',
   },
   {
     title: 'Explanations that teach',
-    body: 'Step-by-step solutions, rule breakdowns, and animated sequence replays — plus analytics that show exactly which rule types cost you points.',
+    body: 'Step-by-step solutions, rule breakdowns, worked GAM solutions, and animated sequence replays — plus analytics that show exactly which rule types and topic areas cost you points.',
   },
   {
-    title: 'Your progress everywhere',
-    body: 'History, settings, and generated sets sync to your account. Practice on the laptop, review on the phone.',
+    title: 'Free, offline, yours',
+    body: 'Installable as an app, fully usable offline, open source, no ads. History, settings, and generated sets sync to your free account across devices.',
+  },
+];
+
+const MODULES = [
+  {
+    name: 'Core Module',
+    to: '/',
+    detail: 'Figure Sequences · Mathematical Equations · Latin Squares',
+    body: 'Three subtests of 20 tasks in 25:00 each, testing how you think: pattern rules, mental algebra, pure deduction. Practice sets from 3 quick tasks to the full 80-minute run.',
+  },
+  {
+    name: 'General Academic Module',
+    to: '/gam',
+    detail: '8 topic areas · reading passages · 90:00',
+    body: 'The Subject Module for the India/APS requirement: a passage teaches a subject-related problem, then single-choice questions make you apply, compute, and transfer — from mathematics to humanities.',
+  },
+];
+
+const LANDING_FAQ: Array<{ q: string; a: React.ReactNode }> = [
+  {
+    q: 'Is CoreForge really free?',
+    a: 'Yes — free, open source (MIT), no ads, no premium tier. The optional AI features use your own Google Gemini key on its free tier.',
+  },
+  {
+    q: 'Do I need the dMAT?',
+    a: (
+      <>
+        From the Summer Semester 2027 intake, Indian Master&rsquo;s applicants whose previous degree
+        is in Engineering, Commerce/Accounting/Finance/Economics, or Business/Management take the
+        dMAT with the General Academic Module as part of the APS process.{' '}
+        <Link to="/dmat-info" className="font-semibold text-accent underline dark:text-accent-dark">
+          Check your degree against the official list →
+        </Link>
+      </>
+    ),
+  },
+  {
+    q: 'Are these real exam questions?',
+    a: 'No — and no practice tool has those. Every question here is originally generated in the officially documented formats, then validated: Core tasks are machine-proven solvable, and every GAM answer key survived an independent re-derivation check.',
+  },
+  {
+    q: 'Does it work on my phone?',
+    a: 'Yes. CoreForge is mobile-first and installable as an app; everything from drills to the full 3.5-hour simulation works on a phone, offline included.',
+  },
+  {
+    q: 'How accurate is the timing?',
+    a: 'Exam-faithful: 20 tasks in 25:00 per Core subtest (75 s per task), 90:00 for the General Academic Module, a 60-second break between Core subtests and the 30-minute break between modules — with honest, auditable scoring underneath.',
   },
 ];
 
@@ -77,15 +124,23 @@ export default function Landing() {
       <section className="grid items-center gap-8 py-6 sm:gap-10 sm:py-8 lg:grid-cols-[1.2fr_1fr] lg:py-14">
         <div className="order-2 lg:order-1">
           <p className="text-sm font-semibold tracking-wide text-accent uppercase dark:text-accent-dark">
-            Free dMAT Core Module practice
+            Free practice for the complete dMAT
           </p>
           <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
-            Train for the digitaler Mastertest with unlimited, exam-faithful questions.
+            The Core Module tests how you think. The General Academic Module tests how you read,
+            apply, and calculate under pressure. Train both — free.
           </h1>
           <p className="mt-4 max-w-xl text-lg text-zinc-600 dark:text-zinc-300">
-            CoreForge simulates the dMAT Core Module — the aptitude test for admission to German
-            Master's programmes — with real exam timing, honest scoring, and analytics that tell
-            you exactly what to drill next.
+            CoreForge simulates the entire digitaler Mastertest — the admission test for German
+            Master&rsquo;s programmes — with real exam timing, honest scoring, and analytics that
+            tell you exactly what to drill next. From the SoSe&nbsp;2027 intake, affected Indian
+            applicants need both modules for the APS process.{' '}
+            <Link
+              to="/dmat-info"
+              className="font-semibold text-accent underline dark:text-accent-dark"
+            >
+              Do I need the dMAT?
+            </Link>
           </p>
           <ul className="mt-6 space-y-4">
             {FEATURES.map((f) => (
@@ -198,12 +253,67 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="pb-4">
+        <h2 className="text-center text-2xl font-bold">Two modules, one sitting</h2>
+        <div className="mx-auto mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
+          {MODULES.map((m) => (
+            <div
+              key={m.name}
+              className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt"
+            >
+              <h3 className="font-bold">{m.name}</h3>
+              <p className="mt-0.5 text-xs font-medium text-accent dark:text-accent-dark">{m.detail}</p>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{m.body}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Plus the full dMAT simulation: Core → 30-minute break → GAM, about 3.5 hours — exactly
+          like test day.
+        </p>
+      </section>
+
+      <section className="mx-auto max-w-2xl pb-8">
+        <h2 className="text-center text-2xl font-bold">Common questions</h2>
+        <div className="mt-4 space-y-2">
+          {LANDING_FAQ.map((f) => (
+            <details
+              key={f.q}
+              className="rounded-card border border-zinc-200 bg-surface p-4 dark:border-zinc-800 dark:bg-surface-dark-alt"
+            >
+              <summary className="cursor-pointer font-semibold">{f.q}</summary>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">{f.a}</p>
+            </details>
+          ))}
+        </div>
+        <div className="mt-6 text-center">
+          <a
+            href="#top"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="inline-block rounded-xl bg-accent px-8 py-3.5 text-lg font-semibold text-white hover:bg-accent-hover"
+          >
+            Start practicing free
+          </a>
+        </div>
+      </section>
+
       <p className="pb-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
-        Not affiliated with g.a.s.t., TestDaF-Institut, or d-mat.de. All questions are originally
-        generated. Official example tasks:{' '}
-        <a href="https://www.d-mat.de" target="_blank" rel="noreferrer" className="underline">
+        Not affiliated with g.a.s.t., TestDaF-Institut, APS, or the DAAD. All questions are
+        originally generated. Official information:{' '}
+        <a href="https://www.d-mat.de/en/" target="_blank" rel="noreferrer" className="underline">
           d-mat.de
-        </a>
+        </a>{' '}
+        ·{' '}
+        <a href="https://aps-india.de/dmat/" target="_blank" rel="noreferrer" className="underline">
+          aps-india.de
+        </a>{' '}
+        ·{' '}
+        <Link to="/dmat-info" className="underline">
+          Do I need the dMAT?
+        </Link>
       </p>
     </div>
   );

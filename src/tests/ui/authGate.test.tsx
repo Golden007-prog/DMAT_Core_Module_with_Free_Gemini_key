@@ -22,7 +22,7 @@ describe('auth gate', () => {
     useAuth.setState({ user: null, initializing: false });
     renderAt('/analytics');
     expect(
-      await screen.findByRole('heading', { name: /train for the digitaler mastertest/i }),
+      await screen.findByRole('heading', { name: /the core module tests how you think/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
@@ -33,7 +33,7 @@ describe('auth gate', () => {
       initializing: false,
     });
     renderAt('/');
-    expect(await screen.findByText(/practice the dmat core module/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^practice the dmat$/i)).toBeInTheDocument();
   });
 
   it('redirects signed-in users away from the landing page', async () => {
@@ -42,6 +42,6 @@ describe('auth gate', () => {
       initializing: false,
     });
     renderAt('/welcome');
-    expect(await screen.findByText(/practice the dmat core module/i)).toBeInTheDocument();
+    expect(await screen.findByText(/^practice the dmat$/i)).toBeInTheDocument();
   });
 });

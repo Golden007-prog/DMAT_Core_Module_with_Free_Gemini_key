@@ -14,11 +14,21 @@ function cloneWithFreshId(q: Question): Question {
 }
 
 /** "Retry this exact set": same seed, same config → identical content,
- *  fresh answers. */
+ *  fresh answers. GAM sets replay from the stored session itself — the
+ *  passage bank can drift between app versions (AI/pool additions), so
+ *  re-assembling by seed would not honour the "identical content" promise. */
 export async function retryExactSet(
   store: StoreApi<SessionStore>,
   session: Session,
 ): Promise<void> {
+  if (session.subtest === 'gam') {
+    await store.getState().startSessionFromQuestions(
+      session.questions.map(cloneWithFreshId),
+      { mode: session.mode, subtest: 'gam', difficulty: session.difficulty },
+      { gamPassages: session.gamPassages, durationMs: session.durationMs },
+    );
+    return;
+  }
   await store.getState().startNewSession(
     {
       mode: session.mode,

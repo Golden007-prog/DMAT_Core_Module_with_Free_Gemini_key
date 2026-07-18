@@ -59,6 +59,18 @@ export function nextLeague(points: number): League | null {
   return LEAGUES.find((l) => l.minPoints > points) ?? null;
 }
 
+/* -------------------------------- modules --------------------------------- */
+
+/** Two ranking boards plus a client-side combined view. */
+export type RankingModule = 'core' | 'gam' | 'combined';
+
+/** The board a session scores on, keyed off its per-session subtest. The GAM
+ *  stage of a full-dMAT run is saved as its own subtest 'gam' session, so it
+ *  lands on the GAM board even though 'full-dmat' itself is a Core label. */
+export function moduleForSubtest(subtest: Session['subtest']): 'core' | 'gam' {
+  return subtest === 'gam' ? 'gam' : 'core';
+}
+
 /* ------------------------------ leaderboard ------------------------------- */
 
 export interface LeaderboardRow {
@@ -72,10 +84,34 @@ export interface LeaderboardRow {
   isMe: boolean;
 }
 
+export interface ModuleAggregate {
+  module: 'core' | 'gam';
+  points: number;
+  sessions: number;
+}
+
+/** Buckets a week's scored sessions into per-module point/session totals.
+ *  Pure and recompute-from-source: only sessions dated in `week` that carry a
+ *  score count, and each contributes to exactly one module. Returns one entry
+ *  per module that actually has sessions, so callers write nothing for a
+ *  module the user hasn't touched. */
+export function bucketSessionsByModule(sessions: Session[], week = weekKey()): ModuleAggregate[] {
+  const buckets = new Map<'core' | 'gam', { points: number; sessions: number }>();
+  for (const session of sessions) {
+    if (weekKey(new Date(session.createdAt)) !== week || !session.score) continue;
+    const module = moduleForSubtest(session.subtest);
+    const agg = buckets.get(module) ?? { points: 0, sessions: 0 };
+    agg.points += computeSessionPoints(session).total;
+    agg.sessions += 1;
+    buckets.set(module, agg);
+  }
+  return [...buckets].map(([module, agg]) => ({ module, ...agg }));
+}
+
 /**
- * Recomputes this week's points from the user's OWN cloud sessions and
- * upserts the result. Recompute-from-source is idempotent: refreshes,
- * re-syncs, and resumed sessions can never double-count.
+ * Recomputes this week's points from the user's OWN cloud sessions and upserts
+ * one row per module that has sessions. Recompute-from-source is idempotent:
+ * refreshes, re-syncs, and resumed sessions can never double-count.
  */
 export async function pushWeeklyScore(): Promise<void> {
   const user = useAuth.getState().user;
@@ -89,35 +125,40 @@ export async function pushWeeklyScore(): Promise<void> {
     .gte('created_at', new Date(Date.now() - 8 * 86_400_000).toISOString());
   if (error || !data) return;
 
-  let points = 0;
-  let sessionCount = 0;
-  for (const row of data) {
-    const session = row.payload as Session;
-    if (weekKey(new Date(session.createdAt)) !== week || !session.score) continue;
-    points += computeSessionPoints(session).total;
-    sessionCount++;
-  }
+  const buckets = bucketSessionsByModule(
+    data.map((row) => row.payload as Session),
+    week,
+  );
+  if (buckets.length === 0) return;
 
-  // league promotion detection: compare against the stored row before upsert
+  // league promotion is judged on the COMBINED total across modules, so read
+  // every stored module row for the week before the upsert overwrites them
   const { data: prev } = await supabase
     .from('weekly_scores')
     .select('points')
     .eq('user_id', user.id)
-    .eq('week', week)
-    .maybeSingle();
+    .eq('week', week);
+  const beforeTotal = (prev ?? []).reduce((sum, r) => sum + (r.points as number), 0);
 
-  await supabase.from('weekly_scores').upsert({
-    user_id: user.id,
-    week,
-    points,
-    sessions: sessionCount,
-    display_name: user.displayName ?? user.email?.split('@')[0] ?? 'Anonymous',
-    avatar_url: user.avatarUrl,
-    updated_at: new Date().toISOString(),
-  });
+  const displayName = user.displayName ?? user.email?.split('@')[0] ?? 'Anonymous';
+  const now = new Date().toISOString();
+  await supabase.from('weekly_scores').upsert(
+    buckets.map((b) => ({
+      user_id: user.id,
+      week,
+      module: b.module,
+      points: b.points,
+      sessions: b.sessions,
+      display_name: displayName,
+      avatar_url: user.avatarUrl,
+      updated_at: now,
+    })),
+    { onConflict: 'user_id,week,module' },
+  );
 
-  const before = leagueFor((prev?.points as number) ?? 0);
-  const after = leagueFor(points);
+  const afterTotal = buckets.reduce((sum, b) => sum + b.points, 0);
+  const before = leagueFor(beforeTotal);
+  const after = leagueFor(afterTotal);
   if (after.minPoints > before.minPoints) {
     fxPromotion();
     toast(`Promoted to ${after.name} league! 🏆`, 'success');
@@ -129,10 +170,63 @@ export function shiftedWeekKey(offsetWeeks: number, now = new Date()): string {
   return weekKey(new Date(now.getTime() + offsetWeeks * 7 * 86_400_000));
 }
 
-/** Top rows for a week plus the signed-in user's own row/rank. */
+/** Raw weekly_scores row as read back from the cloud (one per user+module). */
+export interface WeeklyScoreRow {
+  user_id: string;
+  points: number;
+  sessions: number;
+  display_name: string | null;
+  avatar_url: string | null;
+  updated_at?: string | null;
+}
+
+function toLeaderboardRow(r: WeeklyScoreRow, rank: number, meId?: string): LeaderboardRow {
+  return {
+    userId: r.user_id,
+    displayName: r.display_name || 'Anonymous',
+    avatarUrl: r.avatar_url ?? null,
+    points: r.points,
+    sessions: r.sessions,
+    rank,
+    league: leagueFor(r.points),
+    isMe: r.user_id === meId,
+  };
+}
+
+/** Combined board: weekly_scores holds one row per (user, module), so a user
+ *  can have up to two rows. Sum them into a single row and re-sort by points,
+ *  keeping the most recently updated name/avatar snapshot. Ties break by
+ *  earliest update, matching the server-side ordering. */
+export function combineLeaderboardRows(rows: WeeklyScoreRow[]): WeeklyScoreRow[] {
+  const byUser = new Map<string, WeeklyScoreRow>();
+  for (const r of rows) {
+    const existing = byUser.get(r.user_id);
+    if (!existing) {
+      byUser.set(r.user_id, { ...r });
+      continue;
+    }
+    existing.points += r.points;
+    existing.sessions += r.sessions;
+    if ((r.updated_at ?? '') > (existing.updated_at ?? '')) {
+      existing.display_name = r.display_name;
+      existing.avatar_url = r.avatar_url;
+      existing.updated_at = r.updated_at;
+    }
+  }
+  return [...byUser.values()].sort(
+    (a, b) => b.points - a.points || (a.updated_at ?? '').localeCompare(b.updated_at ?? ''),
+  );
+}
+
+/** Top rows for a week plus the signed-in user's own row/rank. `module`
+ *  picks a board: 'core' and 'gam' filter server-side; 'combined' (the
+ *  default) over-fetches every module row and sums per user in JS, because
+ *  Postgres can't group the two boards in one indexed query. Combined ranks
+ *  are exact within the fetched slice (over-fetched by the max module count). */
 export async function fetchWeeklyLeaderboard(
   limit = 100,
   week = weekKey(),
+  module: RankingModule = 'combined',
 ): Promise<{
   rows: LeaderboardRow[];
   me: LeaderboardRow | null;
@@ -141,51 +235,72 @@ export async function fetchWeeklyLeaderboard(
   const user = useAuth.getState().user;
   if (!supabase) return { rows: [], me: null, week };
 
+  if (module === 'combined') {
+    // one row per (user, module) → over-fetch by the module count (max 2/user)
+    // so the top `limit` users survive the client-side sum.
+    const { data, error } = await supabase
+      .from('weekly_scores')
+      .select('user_id, points, sessions, display_name, avatar_url, updated_at')
+      .eq('week', week)
+      .order('points', { ascending: false })
+      .order('updated_at', { ascending: true })
+      .limit(limit * 2);
+    if (error || !data) return { rows: [], me: null, week };
+
+    const combined = combineLeaderboardRows(data as WeeklyScoreRow[]);
+    const rows = combined.slice(0, limit).map((r, i) => toLeaderboardRow(r, i + 1, user?.id));
+
+    let me = rows.find((r) => r.isMe) ?? null;
+    if (!me && user) {
+      const idx = combined.findIndex((r) => r.user_id === user.id);
+      if (idx >= 0) {
+        me = toLeaderboardRow(combined[idx], idx + 1, user.id);
+      } else {
+        // outside the fetched slice → sum just this user's own module rows
+        const { data: own } = await supabase
+          .from('weekly_scores')
+          .select('user_id, points, sessions, display_name, avatar_url, updated_at')
+          .eq('week', week)
+          .eq('user_id', user.id);
+        const merged =
+          own && own.length > 0 ? combineLeaderboardRows(own as WeeklyScoreRow[])[0] : null;
+        if (merged) me = toLeaderboardRow(merged, combined.length + 1, user.id);
+      }
+    }
+    return { rows, me, week };
+  }
+
   const { data, error } = await supabase
     .from('weekly_scores')
     .select('user_id, points, sessions, display_name, avatar_url')
     .eq('week', week)
+    .eq('module', module)
     .order('points', { ascending: false })
     .order('updated_at', { ascending: true })
     .limit(limit);
   if (error || !data) return { rows: [], me: null, week };
 
-  const rows: LeaderboardRow[] = data.map((r, i) => ({
-    userId: r.user_id as string,
-    displayName: (r.display_name as string) || 'Anonymous',
-    avatarUrl: (r.avatar_url as string) ?? null,
-    points: r.points as number,
-    sessions: r.sessions as number,
-    rank: i + 1,
-    league: leagueFor(r.points as number),
-    isMe: r.user_id === user?.id,
-  }));
+  const rows = (data as WeeklyScoreRow[]).map((r, i) => toLeaderboardRow(r, i + 1, user?.id));
 
   let me = rows.find((r) => r.isMe) ?? null;
   if (!me && user) {
-    // not in the top slice → fetch own row and compute the rank
+    // not in the top slice → fetch own row and count those ahead of it
     const { data: own } = await supabase
       .from('weekly_scores')
-      .select('points, sessions, display_name, avatar_url')
+      .select('user_id, points, sessions, display_name, avatar_url')
       .eq('week', week)
+      .eq('module', module)
       .eq('user_id', user.id)
       .maybeSingle();
     if (own) {
+      const ownRow = own as WeeklyScoreRow;
       const { count } = await supabase
         .from('weekly_scores')
         .select('user_id', { count: 'exact', head: true })
         .eq('week', week)
-        .gt('points', own.points as number);
-      me = {
-        userId: user.id,
-        displayName: (own.display_name as string) || 'Anonymous',
-        avatarUrl: (own.avatar_url as string) ?? null,
-        points: own.points as number,
-        sessions: own.sessions as number,
-        rank: (count ?? 0) + 1,
-        league: leagueFor(own.points as number),
-        isMe: true,
-      };
+        .eq('module', module)
+        .gt('points', ownRow.points);
+      me = toLeaderboardRow(ownRow, (count ?? 0) + 1, user.id);
     }
   }
 

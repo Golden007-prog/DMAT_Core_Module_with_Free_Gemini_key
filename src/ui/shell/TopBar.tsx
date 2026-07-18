@@ -6,12 +6,14 @@ import { cloudEnabled } from '../../cloud/supabaseClient';
 import OfflineIndicator from './OfflineIndicator';
 
 const navItems = [
-  { to: '/', label: 'Practice', short: 'Practice' },
+  { to: '/', label: 'Core Module', short: 'Core' },
+  { to: '/gam', label: 'GAM', short: 'GAM' },
   { to: '/rankings', label: 'Rankings', short: 'Ranks' },
   { to: '/history', label: 'History', short: 'History' },
   { to: '/analytics', label: 'Analytics', short: 'Stats' },
   { to: '/learn', label: 'Learn', short: 'Learn' },
   { to: '/settings', label: 'Settings', short: 'Settings' },
+  { to: '/dmat-info', label: 'dMAT info', short: 'Info' },
 ];
 
 export default function TopBar() {
@@ -46,7 +48,7 @@ export default function TopBar() {
           <span className="hidden sm:inline">
             CoreForge
             <span className="ml-2 hidden text-sm font-normal text-zinc-500 md:inline dark:text-zinc-400">
-              dMAT Core Practice
+              dMAT Practice
             </span>
           </span>
         </NavLink>

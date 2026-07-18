@@ -12,9 +12,9 @@ const tabs = [
     ),
   },
   {
-    to: '/rankings',
-    label: 'Ranks',
-    icon: <path d="M5 21V10M12 21V4M19 21v-7" strokeLinecap="round" />,
+    to: '/learn',
+    label: 'Learn',
+    icon: <path d="M12 4L3 8l9 4 9-4-9-4zM7 10v6c0 1 2.5 3 5 3s5-2 5-3v-6" strokeLinejoin="round" />,
   },
   {
     to: '/analytics',
@@ -22,9 +22,9 @@ const tabs = [
     icon: <path d="M4 19l5-6 4 3 7-9M4 21h16" strokeLinecap="round" strokeLinejoin="round" />,
   },
   {
-    to: '/learn',
-    label: 'Learn',
-    icon: <path d="M12 4L3 8l9 4 9-4-9-4zM7 10v6c0 1 2.5 3 5 3s5-2 5-3v-6" strokeLinejoin="round" />,
+    to: '/rankings',
+    label: 'Ranks',
+    icon: <path d="M5 21V10M12 21V4M19 21v-7" strokeLinecap="round" />,
   },
   {
     to: '/settings',
@@ -57,15 +57,26 @@ export default function BottomNav() {
           key={t.to}
           to={t.to}
           className={({ isActive }) =>
-            `flex min-h-14 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+            `flex min-h-14 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 ${
               isActive ? 'text-accent dark:text-accent-dark' : 'text-zinc-500 dark:text-zinc-400'
             }`
           }
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-            {t.icon}
-          </svg>
-          {t.label}
+          {({ isActive }) => (
+            <>
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-5 w-5 transition-transform duration-150 motion-reduce:transition-none ${isActive ? '-translate-y-px scale-110' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                aria-hidden="true"
+              >
+                {t.icon}
+              </svg>
+              {t.label}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

@@ -100,6 +100,12 @@ interface SettingsState {
   modelChain: string[];
   aiDailyBudget: number;
   aiEquationsEnabled: boolean;
+  /** GAM passage generation from the user's own key. On by default: unlike
+   *  equations there is no deterministic GAM generator, so the toggle chooses
+   *  between fresh AI passages and the seed/community bank rather than gating a
+   *  local fallback — a missing field on an old blob keeps this default via
+   *  merge, exactly like aiEquationsEnabled. */
+  aiGamEnabled: boolean;
   /** latin squares display alphabet ('random' varies per question) */
   latinAlphabet: 'letters' | 'digits' | 'greek' | 'shapes' | 'random';
   /** answer feedback sounds (WebAudio, off by default) */
@@ -129,6 +135,7 @@ export const useSettings = create<SettingsState>()(
       modelChain: DEFAULT_MODEL_CHAIN,
       aiDailyBudget: DEFAULT_AI_DAILY_BUDGET,
       aiEquationsEnabled: false,
+      aiGamEnabled: true,
       latinAlphabet: 'letters',
       soundEffects: false,
       haptics: true,

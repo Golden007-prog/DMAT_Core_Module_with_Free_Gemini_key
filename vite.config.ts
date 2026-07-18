@@ -16,10 +16,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'CoreForge — dMAT Core Practice',
+        name: 'CoreForge — dMAT Practice',
         short_name: 'CoreForge',
         description:
-          'Free practice platform for the dMAT Core Module: Figure Sequences, Mathematical Equations, Latin Squares. Unofficial.',
+          'Free practice platform for the complete dMAT: Core Module (Figure Sequences, Mathematical Equations, Latin Squares) and General Academic Module. Unofficial.',
         theme_color: '#A3195B',
         background_color: '#F6F6F8',
         display: 'standalone',
@@ -34,6 +34,17 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // stable vendor chunks: app-code releases don't re-download React
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

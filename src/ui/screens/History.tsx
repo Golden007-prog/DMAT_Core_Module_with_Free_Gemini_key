@@ -15,9 +15,10 @@ const SUBTEST_SHORT: Record<string, string> = {
   figures: 'Figures',
   equations: 'Equations',
   latin: 'Latin Squares',
+  gam: 'General Academic',
 };
 
-type SubtestFilter = 'all' | 'figures' | 'equations' | 'latin';
+type SubtestFilter = 'all' | 'figures' | 'equations' | 'latin' | 'gam';
 type ModeFilter = 'all' | 'practice' | 'exam';
 
 export default function History() {
@@ -97,7 +98,7 @@ export default function History() {
       )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {(['all', 'figures', 'equations', 'latin'] as SubtestFilter[]).map((f) => (
+        {(['all', 'figures', 'equations', 'latin', 'gam'] as SubtestFilter[]).map((f) => (
           <button
             key={f}
             type="button"
@@ -130,7 +131,71 @@ export default function History() {
         ))}
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-card border border-zinc-200 bg-surface shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+      {/* mobile: card list — no tiny-font table scrolling on a phone */}
+      <ul className="mt-4 space-y-2 sm:hidden">
+        {filtered.map((s) => (
+          <li
+            key={s.id}
+            className="rounded-card border border-zinc-200 bg-surface p-3 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold">{SUBTEST_SHORT[s.subtest] ?? s.subtest}</span>
+              <span className="text-lg font-bold tabular-nums">
+                {s.score ? formatPercent(s.score.accuracy) : '—'}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              {new Date(s.createdAt).toLocaleDateString()} · <span className="capitalize">{s.mode}</span> ·{' '}
+              <span className="capitalize">{s.difficulty}</span> · {s.questionCount} questions
+              {s.score ? ` · ${formatMs(s.score.totalTimeMs)}` : ''}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Link
+                to={`/review/${s.id}`}
+                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent-tint dark:text-accent-dark dark:hover:bg-accent/15"
+              >
+                Review
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  void retryExactSet(sessionStore, s);
+                  navigate('/run');
+                }}
+                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Retry exact
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await retryMistakes(sessionStore, s);
+                  if (ok) navigate('/run');
+                  else toast('Nothing to retry — every question was answered correctly.', 'success');
+                }}
+                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Mistakes
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingDelete(s)}
+                className="ml-auto min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-error/10 hover:text-error"
+                aria-label="Delete session"
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        ))}
+        {filtered.length === 0 && (
+          <li className="p-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            No sessions match these filters.
+          </li>
+        )}
+      </ul>
+
+      <div className="mt-4 hidden overflow-x-auto rounded-card border border-zinc-200 bg-surface shadow-card sm:block dark:border-zinc-800 dark:bg-surface-dark-alt">
         <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">

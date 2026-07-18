@@ -165,15 +165,14 @@ describe('gam retries', () => {
     return store.getState().session!;
   }
 
-  it('retryExactSet reproduces the identical assembled set', async () => {
+  it('retryExactSet replays the stored set verbatim — bank drift cannot change it', async () => {
     const { store } = makeStore();
     const original = await finishedGamSession(store);
     await retryExactSet(store, original);
     const retried = store.getState().session!;
     expect(retried.state).toBe('ready');
-    expect(retried.seed).toBe(original.seed);
     expect(Object.keys(retried.answers)).toHaveLength(0);
-    // identical content and option order (same seed → same shuffle)
+    // identical content and option order, straight from the stored session
     expect(retried.questions.map((q) => (q as GamQuestion).stem)).toEqual(
       original.questions.map((q) => (q as GamQuestion).stem),
     );
@@ -181,6 +180,13 @@ describe('gam retries', () => {
       original.questions.map((q) => (q as GamQuestion).options),
     );
     expect(retried.gamPassages?.map((p) => p.id)).toEqual(original.gamPassages?.map((p) => p.id));
+    expect(retried.durationMs).toBe(original.durationMs);
+    // fresh ids (R5) that keep their passage prefix
+    for (let i = 0; i < retried.questions.length; i++) {
+      const r = retried.questions[i] as GamQuestion;
+      expect(r.id).not.toBe(original.questions[i].id);
+      expect(r.id.startsWith(r.passageId)).toBe(true);
+    }
   });
 
   it('retryMistakes carries only the wrong questions plus their passage docs', async () => {

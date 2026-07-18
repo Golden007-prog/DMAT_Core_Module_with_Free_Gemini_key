@@ -4,6 +4,7 @@ import type {
   FigureQuestion,
   Frame,
   GamQuestion,
+  GamTopicArea,
   LatinLetter,
   LatinQuestion,
   PlacedSymbol,
@@ -225,6 +226,112 @@ export function equationBatchPrompt(count: number, difficulty: Difficulty): stri
     `- Use every one of ${vars.join(', ')} in at least one line, and no other letters.`,
     `- The ${count} systems must differ from one another: different values, different coefficients, different`,
     '  shapes. Do not emit one template with the numbers nudged.',
+  ].join('\n');
+}
+
+/* --------------------- G4: General Academic Module passage ---------------- */
+
+/** Human-readable label per topic-area slug, for the prompt only — the slug is
+ *  what gets stamped on the passage, never the model's rendering of it. */
+const GAM_TOPIC_LABEL: Record<GamTopicArea, string> = {
+  mathematics: 'Mathematics',
+  'computational-sciences': 'Computational Sciences',
+  'natural-sciences': 'Natural Sciences',
+  engineering: 'Engineering',
+  'business-administration': 'Business Administration',
+  economics: 'Economics',
+  'social-sciences': 'Social Sciences',
+  humanities: 'Humanities',
+};
+
+/**
+ * Schema for ONE GamPassage-shaped payload. Like the equation schema, the
+ * `propertyOrdering` is load-bearing rather than cosmetic: the model runs at
+ * thinkingBudget 0, so the only place it can reason is in the tokens it emits,
+ * and the emission order forces it to commit in the right sequence.
+ *
+ *   passageMarkdown BEFORE questions — the questions must be answerable from a
+ *   passage that already exists, so the teaching text is written first.
+ *   Per question: stem → options → correctIndex → explanation. The model names
+ *   all four options before it is allowed to declare which is correct, and only
+ *   justifies the choice afterwards — it cannot retrofit the passage or the
+ *   distractors to a letter it picked first.
+ *
+ * There is deliberately NO `figures` field: AI passages ship without figures.
+ * validateGamPassage only requires REFERENCED figures to resolve, and the prompt
+ * forbids figure references, so a passage with no figures and no `{{fig:…}}`
+ * placeholders is complete. `additionalProperties` is absent everywhere — it is a
+ * hard 400 at Gemini's transcoding layer (see geminiSchema.ts).
+ */
+export function gamPassageSchema(): object {
+  return {
+    type: 'object',
+    propertyOrdering: ['id', 'title', 'passageMarkdown', 'estimatedMinutes', 'questions'],
+    properties: {
+      id: { type: 'string' },
+      title: { type: 'string' },
+      passageMarkdown: { type: 'string' },
+      estimatedMinutes: { type: 'integer', minimum: 4, maximum: 25 },
+      questions: {
+        type: 'array',
+        minItems: 5,
+        maxItems: 8,
+        items: {
+          type: 'object',
+          propertyOrdering: ['stem', 'options', 'correctIndex', 'explanation', 'skill', 'difficulty'],
+          properties: {
+            stem: { type: 'string' },
+            // exactly 4, pinned the same way the equation schema pins its line
+            // count: minItems === maxItems makes the wrong shape unrepresentable
+            options: { type: 'array', minItems: 4, maxItems: 4, items: { type: 'string' } },
+            correctIndex: { type: 'integer', minimum: 0, maximum: 3 },
+            explanation: { type: 'string' },
+            skill: { type: 'string', enum: ['concept', 'compute', 'transfer'] },
+            difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+          },
+          required: ['stem', 'options', 'correctIndex', 'explanation', 'skill', 'difficulty'],
+        },
+      },
+    },
+    required: ['id', 'title', 'passageMarkdown', 'estimatedMinutes', 'questions'],
+  };
+}
+
+export function gamPassagePrompt(
+  topicArea: GamTopicArea,
+  difficulty: Difficulty,
+  bannedTitles: string[],
+): string {
+  const label = GAM_TOPIC_LABEL[topicArea];
+  return [
+    `Write ONE original practice passage for the dMAT General Academic Module (GAM) in the area of ${label}, at ${difficulty} difficulty, followed by its questions.`,
+    'The GAM format is a self-contained reading passage that TEACHES a topic, then single-choice questions answerable from the passage alone. The reader is not assumed to know the topic beforehand — the passage must teach everything its questions rely on.',
+    '',
+    'THE PASSAGE:',
+    '- 350 to 600 words. Markdown: use **bold** for the key terms you introduce, and a | markdown | table | where it genuinely helps present data or a classification.',
+    '- Inline mathematics goes in $…$ using ordinary LaTeX, e.g. $E_p = \\frac{\\%\\Delta Q}{\\%\\Delta P}$. Keep every $ paired.',
+    '- Teach one coherent idea, then give a concrete worked instance a question can build on: specific numbers, a small dataset, or a rule with an example.',
+    '- Original prose in your own words. Never reproduce a textbook passage.',
+    '',
+    'THE QUESTIONS — write 6 or 7:',
+    '- Each is single-choice with EXACTLY 4 options and EXACTLY ONE correct answer; correctIndex is 0-based (0, 1, 2, or 3).',
+    '- Mix the skills roughly 40% conceptual (recall/understand a definition the passage gave), 30% computational (work a number out from the passage), 30% transfer (apply the idea to a fresh situation the passage did not state outright). Tag each question with its "skill".',
+    '- Every wrong option must encode a NAMED misconception — a specific plausible error (a reversed ratio, a confused category, a dropped intercept), never filler. A learner who holds that misconception should be pulled toward that option.',
+    '- The explanation is a worked solution in full sentences: say why the correct option is right AND why the tempting wrong ones are wrong, referring to options by their CONTENT. At least one full sentence, and at least 30 characters.',
+    '- Arithmetic must be clean and independently verifiable; recompute every number before committing to it.',
+    `- Calibrate hardness to ${difficulty}: an easier set leans conceptual with short computations, a harder set demands multi-step reasoning and transfer.`,
+    '',
+    'HARD RULES:',
+    '- No figures: never emit a {{fig:…}} placeholder, and never write "the diagram/graph/figure shown". This passage ships without images, so everything a question needs must live in the words and tables.',
+    '- Refer to options by their CONTENT everywhere — never by a letter and never "option a/b/c/d".',
+    '- Never use "all of the above", "none of the above", or any option whose meaning depends on option order.',
+    ...(bannedTitles.length > 0
+      ? [`- Choose a DIFFERENT topic from every one of these already-written titles: ${bannedTitles.join('; ')}.`]
+      : []),
+    '- Avoid the four official sample topics entirely: vector calculations, hydrostatics (pressure in fluids), economic order quantity, and research strategies in the social sciences.',
+    '',
+    `One compact example of the exact JSON shape (abbreviated — write your own original ${label} topic at full length, 6-7 questions):`,
+    '{"id":"signal-averaging","title":"Signal Averaging","passageMarkdown":"When a noisy measurement is repeated and the readings are averaged, the random errors partly cancel. **Averaging** $n$ independent readings reduces the random noise by a factor of $\\sqrt{n}$ ...","estimatedMinutes":13,"questions":[{"stem":"What does averaging repeated independent readings reduce?","options":["The random measurement noise","The true value of the quantity being measured","The number of readings that were taken","The units the measurement is reported in"],"correctIndex":0,"explanation":"The passage states that independent random errors partly cancel when readings are averaged, so the random noise shrinks while the underlying quantity is unchanged; the other options confuse the noise with the signal, the sample size, or the units.","skill":"concept","difficulty":"easy"}]}',
   ].join('\n');
 }
 
@@ -658,6 +765,18 @@ const TAG_GLOSSARY: Record<string, string> = {
   'lat.hiddenSingle.row': 'latin squares: a symbol fits only one column within a row',
   'lat.hiddenSingle.col': 'latin squares: a symbol fits only one row within a column',
   'lat.clues.sparse': 'latin squares: few givens, so the first deduction is hard to find',
+  'gam.topic.mathematics': 'general academic module: a Mathematics reading passage',
+  'gam.topic.computational-sciences': 'general academic module: a Computational Sciences reading passage',
+  'gam.topic.natural-sciences': 'general academic module: a Natural Sciences reading passage',
+  'gam.topic.engineering': 'general academic module: an Engineering reading passage',
+  'gam.topic.business-administration': 'general academic module: a Business Administration reading passage',
+  'gam.topic.economics': 'general academic module: an Economics reading passage',
+  'gam.topic.social-sciences': 'general academic module: a Social Sciences reading passage',
+  'gam.topic.humanities': 'general academic module: a Humanities reading passage',
+  'gam.skill.concept': 'general academic module: recalling or recognising a concept the passage defined',
+  'gam.skill.compute': 'general academic module: computing a result from values the passage gave',
+  'gam.skill.transfer': 'general academic module: applying the passage to a new situation it did not state outright',
+  'gam.skill.read-chart': 'general academic module: reading a value off a figure or table in the passage',
 };
 
 function describeTag(tag: string): string {

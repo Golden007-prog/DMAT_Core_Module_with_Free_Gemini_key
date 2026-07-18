@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Difficulty, Session, SubtestType } from '../engine/types';
+import type { Difficulty, GamPassage, GamTopicArea, Session, SubtestType } from '../engine/types';
 
 /** Denormalised per-question row — powers all analytics with simple queries. */
 export interface AttemptRow {
@@ -24,6 +24,16 @@ interface AiCacheRow {
   value: string;
 }
 
+/** Locally cached AI/pool GAM passages — merged into the assembly bank so
+ *  practice variety persists offline. Keyed by content hash for dedup. */
+export interface GamPassageRow {
+  hash: string;
+  topicArea: GamTopicArea;
+  difficulty: Difficulty;
+  passage: GamPassage;
+  addedAt: number;
+}
+
 export interface StorageAPI {
   /** false → in-memory fallback (private mode); history will not persist */
   readonly persistent: boolean;
@@ -36,6 +46,8 @@ export interface StorageAPI {
   allAttempts(): Promise<AttemptRow[]>;
   aiCacheGet(key: string): Promise<string | undefined>;
   aiCacheSet(key: string, value: string): Promise<void>;
+  gamPassagesAll(): Promise<GamPassageRow[]>;
+  gamPassagesPut(rows: GamPassageRow[]): Promise<void>;
   settingGet<T>(key: string): Promise<T | undefined>;
   settingSet(key: string, value: unknown): Promise<void>;
   allSettings(): Promise<Record<string, unknown>>;
@@ -47,6 +59,7 @@ class CoreForgeDexie extends Dexie {
   attempts!: Table<AttemptRow, string>;
   aiCache!: Table<AiCacheRow, string>;
   settings!: Table<SettingRow, string>;
+  gamPassages!: Table<GamPassageRow, string>;
 
   constructor(name: string) {
     super(name);
@@ -55,6 +68,15 @@ class CoreForgeDexie extends Dexie {
       attempts: 'id, sessionId, questionId, type, ts, *ruleTags',
       aiCache: 'key',
       settings: 'key',
+    });
+    // v2: GAM — additive only; existing tables keep their v1 shape so old
+    // data survives the upgrade untouched
+    this.version(2).stores({
+      sessions: 'id, createdAt, subtest, mode, state',
+      attempts: 'id, sessionId, questionId, type, ts, *ruleTags',
+      aiCache: 'key',
+      settings: 'key',
+      gamPassages: 'hash, topicArea, difficulty, addedAt',
     });
   }
 }
@@ -99,6 +121,12 @@ export class DexieStorage implements StorageAPI {
   async aiCacheSet(key: string, value: string): Promise<void> {
     await this.db.aiCache.put({ key, value });
   }
+  async gamPassagesAll(): Promise<GamPassageRow[]> {
+    return this.db.gamPassages.toArray();
+  }
+  async gamPassagesPut(rows: GamPassageRow[]): Promise<void> {
+    await this.db.gamPassages.bulkPut(JSON.parse(JSON.stringify(rows)) as GamPassageRow[]);
+  }
   async settingGet<T>(key: string): Promise<T | undefined> {
     return (await this.db.settings.get(key))?.value as T | undefined;
   }
@@ -115,6 +143,7 @@ export class DexieStorage implements StorageAPI {
       this.db.attempts.clear(),
       this.db.aiCache.clear(),
       this.db.settings.clear(),
+      this.db.gamPassages.clear(),
     ]);
   }
 }
@@ -127,6 +156,7 @@ export class MemoryStorage implements StorageAPI {
   private attempts = new Map<string, AttemptRow>();
   private cache = new Map<string, string>();
   private settings = new Map<string, unknown>();
+  private gamRows = new Map<string, GamPassageRow>();
 
   async saveSession(s: Session): Promise<void> {
     this.sessions.set(s.id, JSON.parse(JSON.stringify(s)) as Session);
@@ -158,6 +188,12 @@ export class MemoryStorage implements StorageAPI {
   async aiCacheSet(key: string, value: string): Promise<void> {
     this.cache.set(key, value);
   }
+  async gamPassagesAll(): Promise<GamPassageRow[]> {
+    return [...this.gamRows.values()];
+  }
+  async gamPassagesPut(rows: GamPassageRow[]): Promise<void> {
+    for (const r of rows) this.gamRows.set(r.hash, JSON.parse(JSON.stringify(r)) as GamPassageRow);
+  }
   async settingGet<T>(key: string): Promise<T | undefined> {
     return this.settings.get(key) as T | undefined;
   }
@@ -172,6 +208,7 @@ export class MemoryStorage implements StorageAPI {
     this.attempts.clear();
     this.cache.clear();
     this.settings.clear();
+    this.gamRows.clear();
   }
 }
 
