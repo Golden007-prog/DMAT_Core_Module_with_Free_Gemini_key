@@ -322,6 +322,7 @@ export function gamPassagePrompt(
     `- Calibrate hardness to ${difficulty}: an easier set leans conceptual with short computations, a harder set demands multi-step reasoning and transfer.`,
     '',
     'HARD RULES:',
+    '- The $ character is RESERVED for paired math delimiters. Never write currency as "$100" — a lone $ breaks the math renderer and the passage is discarded. All money is in euro, written like €100 or "100 euros", in the passage, every question, every option, and every explanation.',
     '- No figures: never emit a {{fig:…}} placeholder, and never write "the diagram/graph/figure shown". This passage ships without images, so everything a question needs must live in the words and tables.',
     '- Refer to options by their CONTENT everywhere — never by a letter and never "option a/b/c/d".',
     '- Never use "all of the above", "none of the above", or any option whose meaning depends on option order.',
