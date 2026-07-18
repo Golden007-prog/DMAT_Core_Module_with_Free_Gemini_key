@@ -16,11 +16,13 @@ import Footer from './ui/shell/Footer';
 import ToastHost from './ui/components/Toast';
 import Home from './ui/screens/Home';
 import Runner from './ui/screens/Runner';
+import DmatInfo from './ui/screens/DmatInfo';
 
 // Route-level code splitting: Landing/Home/Runner stay eager (entry paths and
-// the exam surface must never wait on a chunk); the rest load on demand.
+// the exam surface must never wait on a chunk), and so does DmatInfo — it is
+// the public SEO entry page, where a direct hit must not pay a chunk
+// waterfall on LCP. The rest load on demand.
 const GamHub = lazy(() => import('./ui/screens/GamHub'));
-const DmatInfo = lazy(() => import('./ui/screens/DmatInfo'));
 const Results = lazy(() => import('./ui/screens/Results'));
 const Review = lazy(() => import('./ui/screens/Review'));
 const Break = lazy(() => import('./ui/screens/Break'));
