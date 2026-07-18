@@ -58,7 +58,7 @@ export default function BottomNav() {
           to={t.to}
           className={({ isActive }) =>
             `flex min-h-14 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-transform duration-150 active:scale-95 motion-reduce:transition-none motion-reduce:active:scale-100 ${
-              isActive ? 'text-accent dark:text-accent-dark' : 'text-zinc-500 dark:text-zinc-400'
+              isActive ? 'text-accent dark:text-accent-bright' : 'text-zinc-500 dark:text-zinc-400'
             }`
           }
         >

@@ -41,7 +41,7 @@ export default function CoachCard({
         <button
           type="button"
           onClick={ask}
-          className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/15"
+          className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/15"
         >
           {state === 'error' ? 'Try the AI coach again' : 'Get an AI coaching plan'}
         </button>
@@ -65,7 +65,7 @@ export default function CoachCard({
           </ul>
 
           <div className="border-t border-accent/15 pt-3 dark:border-accent-dark/20">
-            <h4 className="text-xs font-bold tracking-wide uppercase text-accent dark:text-accent-dark">
+            <h4 className="text-xs font-bold tracking-wide uppercase text-accent dark:text-accent-bright">
               This week's drills
             </h4>
             <ol className="mt-2 space-y-2">

@@ -1,6 +1,10 @@
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from '../../state/sessionStore';
 import { useSettings } from '../../state/settingsStore';
 import { formatMs } from '../format';
+
+const FIVE_MIN = 5 * 60_000;
+const ONE_MIN = 60_000;
 
 /** mm:ss, tabular digits; amber under 5:00, pulsing red under 1:00. The
  *  "hide timer" anxiety option hides the digits — time is still enforced. */
@@ -10,11 +14,28 @@ export default function TimerDisplay() {
   const hideTimer = useSettings((s) => s.hideTimer);
   const set = useSettings((s) => s.set);
 
-  const warn = remainingMs < 5 * 60_000;
-  const critical = remainingMs < 60_000;
+  const warn = remainingMs < FIVE_MIN;
+  const critical = remainingMs < ONE_MIN;
+
+  // Announce the 5:00 and 1:00 thresholds once each, on the downward crossing.
+  // The ticking digits themselves must never be a live region — that would
+  // announce every second. We watch for the moment the remaining time drops
+  // past a threshold and push a single message into a polite live region.
+  const [announcement, setAnnouncement] = useState('');
+  const prevMs = useRef(remainingMs);
+  useEffect(() => {
+    const was = prevMs.current;
+    prevMs.current = remainingMs;
+    if (!running) return; // keep prevMs synced while stopped, no crossing
+    if (was > ONE_MIN && remainingMs <= ONE_MIN) setAnnouncement('1 minute remaining');
+    else if (was > FIVE_MIN && remainingMs <= FIVE_MIN) setAnnouncement('5 minutes remaining');
+  }, [remainingMs, running]);
 
   return (
     <div className="flex items-center gap-1.5">
+      <span className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </span>
       <span
         className={`timer-digits rounded-md px-2 py-0.5 text-lg font-semibold ${
           !running
@@ -25,7 +46,6 @@ export default function TimerDisplay() {
                 ? 'bg-warning/10 text-warning'
                 : 'text-ink dark:text-zinc-100'
         }`}
-        aria-live={critical && running ? 'polite' : 'off'}
         aria-label={hideTimer ? 'Timer hidden' : `Time remaining ${formatMs(remainingMs)}`}
       >
         {hideTimer ? '––:––' : formatMs(remainingMs)}

@@ -41,7 +41,7 @@ function FieldChecker() {
 
   return (
     <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
-      <h3 className="text-lg font-bold">Check your bachelor&rsquo;s degree</h3>
+      <h2 className="text-lg font-bold">Check your bachelor&rsquo;s degree</h2>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
         Type your degree or branch (e.g. &ldquo;Mechanical Engineering&rdquo;, &ldquo;B.Com&rdquo;,
         &ldquo;BBA&rdquo;, &ldquo;BCA&rdquo;) — matched against the official v1.0 list of affected
@@ -87,7 +87,7 @@ function FieldChecker() {
               href={GAM_INFO.links.apsIndia}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-accent underline dark:text-accent-dark"
+              className="font-semibold text-accent underline dark:text-accent-bright"
             >
               Official list &amp; FAQ (aps-india.de)
             </a>
@@ -266,7 +266,7 @@ export default function DmatInfo() {
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-accent underline dark:text-accent-dark"
+              className="font-medium text-accent underline dark:text-accent-bright"
             >
               {label}
             </a>

@@ -58,7 +58,7 @@ export default function ExplainWithAi({
         <button
           type="button"
           onClick={ask}
-          className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/15"
+          className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/15"
         >
           {state === 'error' ? 'Try the AI tutor again' : 'Explain with AI'}
         </button>
@@ -70,7 +70,7 @@ export default function ExplainWithAi({
       {state === 'done' && explanation && (
         <div className="space-y-4 rounded-card border border-accent/20 bg-accent-tint/60 p-4 dark:border-accent-dark/25 dark:bg-accent/10">
           <div>
-            <h4 className="text-xs font-bold tracking-wide uppercase text-accent dark:text-accent-dark">
+            <h4 className="text-xs font-bold tracking-wide uppercase text-accent dark:text-accent-bright">
               What went wrong
             </h4>
             <p className="mt-1 text-sm font-medium text-ink dark:text-zinc-100">{explanation.diagnosis}</p>

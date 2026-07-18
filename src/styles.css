@@ -13,6 +13,10 @@
   --color-accent-hover: #8a1450;
   --color-accent-tint: #f7e6ee;
   --color-accent-dark: #d4437f;
+  /* dark-mode accent for TEXT: #d4437f only reaches 3.88:1 on the dark
+     surfaces — this lighter berry measures 5.46:1 on #1e1e24 (WCAG AA).
+     Backgrounds/borders keep accent-dark (3:1 graphics rule passes). */
+  --color-accent-bright: #e56aa3;
 
   /* Ink & surfaces */
   --color-ink: #1b1b1f;

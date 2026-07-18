@@ -9,6 +9,7 @@ import { ruleTagLabel } from '../ruleTagLabels';
 import { computeSessionPoints } from '../../state/points';
 import { useAuth } from '../../cloud/authStore';
 import { toast } from '../components/Toast';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 
 function ScoreRing({ accuracy }: { accuracy: number }) {
   const r = 52;
@@ -119,7 +120,7 @@ function PointsRankLink({ hasPoints }: { hasPoints: boolean }) {
   return (
     <Link
       to="/rankings"
-      className="mt-1 text-xs font-semibold text-accent hover:underline dark:text-accent-dark"
+      className="mt-1 text-xs font-semibold text-accent hover:underline dark:text-accent-bright"
     >
       See your weekly rank →
     </Link>
@@ -131,6 +132,7 @@ export default function Results() {
   const navigate = useNavigate();
   const active = useSession((s) => s.session);
   const [session, setSession] = useState<Session | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const coreActive = useFullCore((s) => s.active);
   const coreAtBreak = useFullCore((s) => s.atBreak);
   const coreComplete = useFullCore((s) => s.complete);
@@ -141,10 +143,17 @@ export default function Results() {
   useEffect(() => {
     if (active && active.id === sessionId) {
       setSession(active);
+      setLoaded(true);
     } else if (sessionId) {
+      setLoaded(false);
       void getStorage()
         .then((s) => s.getSession(sessionId))
-        .then((s) => setSession(s ?? null));
+        .then((s) => {
+          setSession(s ?? null);
+          setLoaded(true);
+        });
+    } else {
+      setLoaded(true);
     }
   }, [active, sessionId]);
 
@@ -157,10 +166,27 @@ export default function Results() {
   }, [sessionId, active]);
 
   if (!session?.score) {
+    if (!loaded) {
+      return (
+        <section className="mx-auto max-w-3xl" aria-busy="true">
+          <Skeleton className="h-8 w-32" />
+          <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr]">
+            <div className="flex flex-col items-center rounded-card border border-zinc-200 bg-surface p-6 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+              <Skeleton className="h-36 w-36 rounded-full" />
+              <Skeleton className="mt-3 h-3 w-40" />
+            </div>
+            <div className="space-y-4">
+              <SkeletonCard lines={2} />
+              <SkeletonCard lines={3} />
+            </div>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="py-10 text-center text-zinc-500 dark:text-zinc-400">
         <p>No finished session found here.</p>
-        <Link to="/" className="mt-3 inline-block font-semibold text-accent hover:underline dark:text-accent-dark">
+        <Link to="/" className="mt-3 inline-block font-semibold text-accent hover:underline dark:text-accent-bright">
           Set up a practice run
         </Link>
       </section>
@@ -210,7 +236,7 @@ export default function Results() {
             {score.correct} correct · {score.wrong - score.unanswered} wrong · {score.unanswered} unanswered
           </p>
           {points.total > 0 && (
-            <p className="mt-2 rounded-full bg-accent-tint px-3 py-1 text-sm font-semibold text-accent dark:bg-accent/15 dark:text-accent-dark">
+            <p className="mt-2 rounded-full bg-accent-tint px-3 py-1 text-sm font-semibold text-accent dark:bg-accent/15 dark:text-accent-bright">
               +{points.total} pts
               {points.timeBonus > 0 && (
                 <span className="font-normal"> ({points.base} + {points.timeBonus} time bonus)</span>

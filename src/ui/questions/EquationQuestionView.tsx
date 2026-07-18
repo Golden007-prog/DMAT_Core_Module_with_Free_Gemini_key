@@ -27,7 +27,7 @@ export default function EquationQuestionView({
       {question.askMode === 'choice' && question.target && (
         <fieldset>
           <legend className="mb-3 text-base font-semibold">
-            What is <span className="font-mono text-accent dark:text-accent-dark">{question.target.variable}</span>?
+            What is <span className="font-mono text-accent dark:text-accent-bright">{question.target.variable}</span>?
           </legend>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`Value of ${question.target.variable}`}>
             {question.target.options.map((opt, i) => {

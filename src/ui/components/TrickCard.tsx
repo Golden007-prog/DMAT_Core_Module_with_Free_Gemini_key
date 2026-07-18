@@ -5,7 +5,7 @@ import { ruleTagLabel } from '../ruleTagLabels';
 
 const LEVEL_STYLES: Record<TrickLevel, string> = {
   core: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
-  sharp: 'bg-accent-tint text-accent dark:bg-zinc-800 dark:text-accent-dark',
+  sharp: 'bg-accent-tint text-accent dark:bg-zinc-800 dark:text-accent-bright',
   elite: 'bg-accent text-white dark:bg-accent-dark',
 };
 
@@ -33,7 +33,7 @@ export default function TrickCard({
           aria-controls={bodyId}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
-          <span aria-hidden="true" className="mt-0.5 text-accent dark:text-accent-dark">
+          <span aria-hidden="true" className="mt-0.5 text-accent dark:text-accent-bright">
             {open ? '▾' : '▸'}
           </span>
           <span className="min-w-0">

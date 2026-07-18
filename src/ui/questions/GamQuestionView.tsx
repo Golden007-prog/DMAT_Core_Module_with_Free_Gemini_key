@@ -152,7 +152,7 @@ export default function GamQuestionView({
             onClick={() => setPane(key)}
             className={`min-h-10 touch-manipulation rounded-md text-sm font-semibold capitalize transition-colors ${
               pane === key
-                ? 'bg-surface text-accent shadow-sm dark:bg-surface-dark dark:text-accent-dark'
+                ? 'bg-surface text-accent shadow-sm dark:bg-surface-dark dark:text-accent-bright'
                 : 'text-zinc-500 dark:text-zinc-400'
             }`}
           >

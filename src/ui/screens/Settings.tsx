@@ -16,13 +16,90 @@ import { toast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AccountCard from '../components/AccountCard';
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+const SECTIONS = [
+  { id: 'account', label: 'Account' },
+  { id: 'practice', label: 'Practice' },
+  { id: 'ai', label: 'AI & API key' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'data', label: 'Data & privacy' },
+  { id: 'danger', label: 'Danger zone' },
+] as const;
+
+/** Sticky in-page nav. The TopBar is not sticky (it scrolls away), so pinning at
+ *  top-0 lands cleanly; each section carries scroll-mt so anchor jumps clear it. */
+function SectionNav() {
+  const [active, setActive] = useState<string>(SECTIONS[0].id);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setActive(e.target.id);
+        }
+      },
+      // active band: just below the pinned nav, down to the top third of the viewport
+      { rootMargin: '-80px 0px -70% 0px' },
+    );
+    for (const s of SECTIONS) {
+      const el = document.getElementById(s.id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
+    <nav
+      aria-label="Settings sections"
+      className="sticky top-0 z-10 flex gap-1.5 overflow-x-auto rounded-xl bg-surface-alt/90 py-2 backdrop-blur dark:bg-surface-dark/90"
+    >
+      {SECTIONS.map((s) => (
+        <a
+          key={s.id}
+          href={`#${s.id}`}
+          aria-current={active === s.id ? 'true' : undefined}
+          className={`inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-full px-3.5 text-xs font-medium transition-colors ${
+            active === s.id
+              ? 'bg-accent text-white dark:bg-accent-dark'
+              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+          }`}
+        >
+          {s.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+function Section({
+  id,
+  title,
+  danger,
+  children,
+}: {
+  id: string;
+  title: string;
+  danger?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      className={`scroll-mt-24 rounded-card border p-5 shadow-card ${
+        danger
+          ? 'border-error/40 bg-error/5 dark:border-error/40 dark:bg-error/10'
+          : 'border-zinc-200 bg-surface dark:border-zinc-800 dark:bg-surface-dark-alt'
+      }`}
+    >
       <h2 className="font-semibold">{title}</h2>
       {children}
-    </div>
+    </section>
   );
+}
+
+/** One-line, factual helper text under a control's label. */
+function Desc({ children }: { children: React.ReactNode }) {
+  return <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{children}</p>;
 }
 
 interface InstallPromptEvent extends Event {
@@ -175,13 +252,135 @@ export default function Settings() {
     toast('All local data deleted.', 'success');
   };
 
+  const pill = (selected: boolean) =>
+    `rounded-lg px-3 py-1.5 text-sm font-medium ${
+      selected
+        ? 'bg-accent text-white dark:bg-accent-dark'
+        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+    }`;
+
   return (
     <section className="mx-auto max-w-2xl space-y-5">
       <h1 className="text-2xl font-bold">Settings</h1>
 
-      <AccountCard />
+      <SectionNav />
 
-      <Card title="Gemini AI (optional — bring your own key)">
+      {/* Account */}
+      <section id="account" className="scroll-mt-24">
+        <AccountCard />
+      </section>
+
+      {/* Practice */}
+      <Section id="practice" title="Practice">
+        <div className="mt-3 space-y-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.autoAdvance}
+              onChange={(e) => settings.set('autoAdvance', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Auto-advance in practice
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (next question ~1 s after instant feedback)
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.soundEffects}
+              onChange={(e) => settings.set('soundEffects', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Sound effects
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (answer feedback, time warnings, promotions)
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.haptics}
+              onChange={(e) => settings.set('haptics', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Vibration on answers
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">(phones only)</span>
+          </label>
+
+          <div>
+            <label className="text-sm font-medium" htmlFor="daily-goal">
+              Daily goal (questions, 0 = off)
+            </label>
+            <Desc>Number of questions to aim for each day; 0 turns the goal off.</Desc>
+            <input
+              id="daily-goal"
+              type="number"
+              min={0}
+              max={200}
+              value={settings.dailyGoal}
+              onChange={(e) =>
+                settings.set('dailyGoal', Math.max(0, Math.min(200, Number(e.target.value) || 0)))
+              }
+              className="mt-1.5 block w-24 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+
+          <fieldset>
+            <legend className="text-sm font-medium">Equation answering</legend>
+            <Desc>Choose whether equation questions offer answer choices or ask you to type the result.</Desc>
+            <div className="mt-1.5 flex gap-1.5">
+              {(
+                [
+                  ['choice', 'Choice (exam-faithful)'],
+                  ['entry', 'Entry (harder practice)'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => settings.set('equationAskMode', value)}
+                  aria-pressed={settings.equationAskMode === value}
+                  className={pill(settings.equationAskMode === value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.examNavFree}
+              onChange={(e) => settings.set('examNavFree', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Allow backwards navigation in exam mode
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (official behaviour unconfirmed — default is forward-only)
+            </span>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.hideTimer}
+              onChange={(e) => settings.set('hideTimer', e.target.checked)}
+              className="h-4 w-4 accent-[#A3195B]"
+            />
+            Hide the timer digits
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              (time is still enforced)
+            </span>
+          </label>
+        </div>
+      </Section>
+
+      {/* AI & API key */}
+      <Section id="ai" title="Gemini AI (optional — bring your own key)">
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
           Everything works fully without AI. A free Gemini API key adds AI-generated equation variety,
           per-mistake tutor explanations, and a coaching narrative. Create one at{' '}
@@ -189,7 +388,7 @@ export default function Settings() {
             href="https://aistudio.google.com/apikey"
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-accent hover:underline dark:text-accent-dark"
+            className="font-semibold text-accent hover:underline dark:text-accent-bright"
           >
             Google AI Studio
           </a>
@@ -204,7 +403,7 @@ export default function Settings() {
               setKeyTest('idle');
             }}
             placeholder="Paste your Gemini API key"
-            className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900"
             aria-label="Gemini API key"
           />
           <button
@@ -237,13 +436,13 @@ export default function Settings() {
           its products — don't paste anything private into AI features.
         </p>
 
-        <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-          <label className="flex items-center gap-2 text-sm font-medium">
+        <div className="mt-4 space-y-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+          <label className="flex items-start gap-2 text-sm font-medium">
             <input
               type="checkbox"
               checked={settings.aiEquationsEnabled}
               onChange={(e) => settings.set('aiEquationsEnabled', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
+              className="mt-0.5 h-4 w-4 accent-[#A3195B]"
             />
             <span>
               AI equation sets — generated fresh with your key (and shared to the community pool),
@@ -251,7 +450,25 @@ export default function Settings() {
             </span>
           </label>
 
-          <p className="mt-4 text-sm font-medium">Model chain (first available wins)</p>
+          <label className="flex items-start gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.aiGamEnabled}
+              onChange={(e) => settings.set('aiGamEnabled', e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#A3195B]"
+            />
+            <span>
+              <span className="block">AI-generated GAM passages</span>
+              <span className="block text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                When a focused topic drill starts, generate one fresh passage with your key — falls
+                back to the built-in bank on any failure.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+          <p className="text-sm font-medium">Model chain (first available wins)</p>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Measured on a free key: gemini-3.1-flash-lite answers in under a second and keeps
             answering all day, while gemini-3.5-flash is capped at 20 requests a day — about one
@@ -363,7 +580,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={() => applyChain(DEFAULT_MODEL_CHAIN)}
-              className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
+              className="text-xs font-medium text-accent hover:underline dark:text-accent-bright"
             >
               Reset to the recommended chain ({DEFAULT_MODEL_CHAIN.join(', ')})
             </button>
@@ -373,7 +590,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => applyChain(recommendedChain)}
-                  className="text-xs font-medium text-accent hover:underline dark:text-accent-dark"
+                  className="text-xs font-medium text-accent hover:underline dark:text-accent-bright"
                 >
                   Use the best chain your key can see ({recommendedChain.join(', ')})
                 </button>
@@ -384,7 +601,8 @@ export default function Settings() {
             <label className="text-sm font-medium" htmlFor="budget">
               Daily AI call budget
             </label>
-            <div className="mt-1 flex items-center gap-3">
+            <Desc>A safety cap on AI calls per day; features fall back to the built-in generator once it is reached.</Desc>
+            <div className="mt-1.5 flex items-center gap-3">
               <input
                 id="budget"
                 type="number"
@@ -397,7 +615,7 @@ export default function Settings() {
                     Math.max(1, Math.min(200, Number(e.target.value) || DEFAULT_AI_DAILY_BUDGET)),
                   )
                 }
-                className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />
               <div className="flex-1">
                 <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
@@ -415,12 +633,14 @@ export default function Settings() {
             </div>
           </div>
         </div>
-      </Card>
+      </Section>
 
-      <Card title="Practice experience">
+      {/* Appearance */}
+      <Section id="appearance" title="Appearance">
         <div className="mt-3 space-y-4">
           <fieldset>
             <legend className="text-sm font-medium">Theme</legend>
+            <Desc>Use light, dark, or follow your device setting.</Desc>
             <div className="mt-1.5 flex gap-1.5">
               {(['light', 'dark', 'system'] as Theme[]).map((t) => (
                 <button
@@ -428,11 +648,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => setTheme(t)}
                   aria-pressed={theme === t}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
-                    theme === t
-                      ? 'bg-accent text-white dark:bg-accent-dark'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                  }`}
+                  className={`capitalize ${pill(theme === t)}`}
                 >
                   {t}
                 </button>
@@ -442,6 +658,7 @@ export default function Settings() {
 
           <fieldset>
             <legend className="text-sm font-medium">Question size</legend>
+            <Desc>Sets how large question text and figures appear.</Desc>
             <div className="mt-1.5 flex gap-1.5">
               {(['compact', 'comfortable', 'large'] as const).map((s) => (
                 <button
@@ -449,174 +666,77 @@ export default function Settings() {
                   type="button"
                   onClick={() => settings.set('questionScale', s)}
                   aria-pressed={settings.questionScale === s}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
-                    settings.questionScale === s
-                      ? 'bg-accent text-white dark:bg-accent-dark'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                  }`}
+                  className={`capitalize ${pill(settings.questionScale === s)}`}
                 >
                   {s}
                 </button>
               ))}
             </div>
           </fieldset>
-
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={settings.soundEffects}
-              onChange={(e) => settings.set('soundEffects', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
-            />
-            Sound effects
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-              (answer feedback, time warnings, promotions)
-            </span>
-          </label>
-
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={settings.haptics}
-              onChange={(e) => settings.set('haptics', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
-            />
-            Vibration on answers
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">(phones only)</span>
-          </label>
-
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={settings.autoAdvance}
-              onChange={(e) => settings.set('autoAdvance', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
-            />
-            Auto-advance in practice
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-              (next question ~1 s after instant feedback)
-            </span>
-          </label>
-
-          <div>
-            <label className="text-sm font-medium" htmlFor="daily-goal">
-              Daily goal (questions, 0 = off)
-            </label>
-            <input
-              id="daily-goal"
-              type="number"
-              min={0}
-              max={200}
-              value={settings.dailyGoal}
-              onChange={(e) =>
-                settings.set('dailyGoal', Math.max(0, Math.min(200, Number(e.target.value) || 0)))
-              }
-              className="mt-1 block w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          {canInstall && (
-            <button
-              type="button"
-              onClick={async () => {
-                await deferredInstall?.prompt();
-                deferredInstall = null;
-                setCanInstall(false);
-              }}
-              className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/15"
-            >
-              Install CoreForge as an app
-            </button>
-          )}
         </div>
-      </Card>
+      </Section>
 
-      <Card title="Test behaviour">
-        <div className="mt-3 space-y-4">
-          <fieldset>
-            <legend className="text-sm font-medium">Equation answering</legend>
-            <div className="mt-1.5 flex gap-1.5">
-              {(
-                [
-                  ['choice', 'Choice (exam-faithful)'],
-                  ['entry', 'Entry (harder practice)'],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => settings.set('equationAskMode', value)}
-                  aria-pressed={settings.equationAskMode === value}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                    settings.equationAskMode === value
-                      ? 'bg-accent text-white dark:bg-accent-dark'
-                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={settings.examNavFree}
-              onChange={(e) => settings.set('examNavFree', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
-            />
-            Allow backwards navigation in exam mode
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-              (official behaviour unconfirmed — default is forward-only)
-            </span>
-          </label>
-
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={settings.hideTimer}
-              onChange={(e) => settings.set('hideTimer', e.target.checked)}
-              className="h-4 w-4 accent-[#A3195B]"
-            />
-            Hide the timer digits
-            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-              (time is still enforced)
-            </span>
-          </label>
-        </div>
-      </Card>
-
-      <Card title="Your data">
+      {/* Data & privacy */}
+      <Section id="data" title="Data & privacy">
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
           Everything lives in this browser — no accounts, no telemetry. Export a JSON backup any time.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={doExport}
-            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-          >
-            Export history
-          </button>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-          >
-            Import backup
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void doImport(f);
-              e.target.value = '';
-            }}
-          />
+        <div className="mt-3 space-y-4">
+          <div>
+            <button
+              type="button"
+              onClick={doExport}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Export history
+            </button>
+            <Desc>Download all sessions, settings, and generated sets as a JSON file.</Desc>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Import backup
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void doImport(f);
+                e.target.value = '';
+              }}
+            />
+            <Desc>Restore your history from a previously exported JSON file.</Desc>
+          </div>
+
+          {canInstall && (
+            <div>
+              <button
+                type="button"
+                onClick={async () => {
+                  await deferredInstall?.prompt();
+                  deferredInstall = null;
+                  setCanInstall(false);
+                }}
+                className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/15"
+              >
+                Install CoreForge as an app
+              </button>
+              <Desc>Add CoreForge to your device for offline, app-like use.</Desc>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      {/* Danger zone */}
+      <Section id="danger" title="Danger zone" danger>
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
@@ -624,8 +744,9 @@ export default function Settings() {
           >
             Delete all data
           </button>
+          <Desc>Permanently removes all sessions, attempts, analytics, and the AI cache from this browser.</Desc>
         </div>
-      </Card>
+      </Section>
 
       <ConfirmDialog
         open={confirmDelete}

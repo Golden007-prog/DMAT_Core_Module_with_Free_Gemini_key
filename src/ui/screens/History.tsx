@@ -68,6 +68,15 @@ export default function History() {
     return (
       <section className="py-10 text-center">
         <h1 className="text-2xl font-bold">History</h1>
+        <img
+          src="media/empty-history.webp"
+          alt=""
+          aria-hidden="true"
+          width="512"
+          height="512"
+          loading="lazy"
+          className="mx-auto mt-6 h-40 w-40 rounded-card dark:opacity-90"
+        />
         <p className="mt-3 text-zinc-500 dark:text-zinc-400">
           No completed sessions yet. Your finished runs land here, ready to review and retry.
         </p>
@@ -85,7 +94,7 @@ export default function History() {
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">History</h1>
-        <Link to="/mistakes" className="text-sm font-semibold text-accent hover:underline dark:text-accent-dark">
+        <Link to="/mistakes" className="text-sm font-semibold text-accent hover:underline dark:text-accent-bright">
           Mistakes notebook →
         </Link>
       </div>
@@ -104,7 +113,7 @@ export default function History() {
             type="button"
             onClick={() => setSubtest(f)}
             aria-pressed={subtest === f}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium ${
               subtest === f
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -120,7 +129,7 @@ export default function History() {
             type="button"
             onClick={() => setMode(f)}
             aria-pressed={mode === f}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+            className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
               mode === f
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -152,7 +161,7 @@ export default function History() {
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Link
                 to={`/review/${s.id}`}
-                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent-tint dark:text-accent-dark dark:hover:bg-accent/15"
+                className="min-h-11 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent-tint dark:text-accent-bright dark:hover:bg-accent/15"
               >
                 Review
               </Link>
@@ -162,7 +171,7 @@ export default function History() {
                   void retryExactSet(sessionStore, s);
                   navigate('/run');
                 }}
-                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="min-h-11 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 Retry exact
               </button>
@@ -173,14 +182,14 @@ export default function History() {
                   if (ok) navigate('/run');
                   else toast('Nothing to retry — every question was answered correctly.', 'success');
                 }}
-                className="min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="min-h-11 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 Mistakes
               </button>
               <button
                 type="button"
                 onClick={() => setPendingDelete(s)}
-                className="ml-auto min-h-9 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-error/10 hover:text-error"
+                className="ml-auto min-h-11 touch-manipulation rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-error/10 hover:text-error"
                 aria-label="Delete session"
               >
                 Delete
@@ -235,7 +244,7 @@ export default function History() {
                   <div className="flex justify-end gap-1.5 whitespace-nowrap">
                     <Link
                       to={`/review/${s.id}`}
-                      className="rounded-md px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent-tint dark:text-accent-dark dark:hover:bg-accent/15"
+                      className="rounded-md px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent-tint dark:text-accent-bright dark:hover:bg-accent/15"
                     >
                       Review
                     </Link>

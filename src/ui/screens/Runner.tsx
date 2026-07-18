@@ -446,7 +446,7 @@ export default function Runner() {
       className={`mx-auto pb-24 sm:pb-0 ${question.type === 'gam' ? 'max-w-6xl' : 'max-w-4xl'}`}
     >
       <header className="mb-4 flex items-center gap-2 sm:gap-3">
-        <h1 className="hidden text-sm font-semibold sm:block sm:text-base">
+        <h1 className="sr-only font-semibold sm:not-sr-only sm:block sm:text-base">
           {SUBTEST_NAMES[question.type]}
         </h1>
         <span className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -486,7 +486,7 @@ export default function Runner() {
           onClick={() => settings.set('focusMode', !settings.focusMode)}
           className={`hidden rounded-lg p-2 sm:block ${
             settings.focusMode
-              ? 'bg-accent-tint text-accent dark:bg-accent/20 dark:text-accent-dark'
+              ? 'bg-accent-tint text-accent dark:bg-accent/20 dark:text-accent-bright'
               : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800'
           }`}
           aria-label="Toggle focus mode"
@@ -510,7 +510,7 @@ export default function Runner() {
       </header>
 
       {isExam && !bannerDismissed && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent dark:bg-accent/15 dark:text-accent-dark">
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-accent-tint px-4 py-2 text-sm text-accent dark:bg-accent/15 dark:text-accent-bright">
           <span>No note-taking — solve mentally, as in the real exam.</span>
           <button
             type="button"

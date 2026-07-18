@@ -8,6 +8,7 @@ import type { Difficulty, SubtestType } from '../../engine/types';
 import { LATIN_ALPHABETS, ALPHABET_IDS } from '../../engine/latinSquares/alphabets';
 import { formatPercent, formatMs } from '../format';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { nextIndiaTestDate } from '../../content/gamInfo';
 
 /** Days until the next official India test date; null once it has passed. */
@@ -121,7 +122,7 @@ export default function Home() {
         {daysToIndiaTest() !== null && (
           <Link
             to="/dmat-info"
-            className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-tint/50 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark/30 dark:bg-accent/10 dark:text-accent-dark"
+            className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent-tint/50 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-tint dark:border-accent-dark/30 dark:bg-accent/10 dark:text-accent-bright"
             title="Next official India test date: 26 September 2026"
           >
             <span className="tabular-nums">{daysToIndiaTest()}</span> days to the India test date
@@ -154,11 +155,12 @@ export default function Home() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 border-warning/40 bg-warning/5 p-4">
           <p className="text-sm">
             <strong>Test in progress:</strong>{' '}
-            {runningSession.subtest === 'figures'
-              ? 'Figure Sequences'
-              : runningSession.subtest === 'equations'
-                ? 'Mathematical Equations'
-                : 'Latin Squares'}{' '}
+            {{
+              figures: 'Figure Sequences',
+              equations: 'Mathematical Equations',
+              latin: 'Latin Squares',
+              gam: 'General Academic Module',
+            }[runningSession.subtest as string] ?? runningSession.subtest}{' '}
             · {Object.keys(runningSession.answers).length}/{runningSession.questionCount} answered
           </p>
           <button
@@ -201,11 +203,15 @@ export default function Home() {
               </span>
               <h2 className="mt-3 font-semibold">{s.name}</h2>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{s.description}</p>
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                {stats
-                  ? `${stats.attempts} attempt${stats.attempts === 1 ? '' : 's'} · last ${formatPercent(stats.last)} · best ${formatPercent(stats.best)}`
-                  : 'Not attempted yet'}
-              </p>
+              {!history.loaded ? (
+                <Skeleton className="mt-2 h-3 w-36" />
+              ) : (
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  {stats
+                    ? `${stats.attempts} attempt${stats.attempts === 1 ? '' : 's'} · last ${formatPercent(stats.last)} · best ${formatPercent(stats.best)}`
+                    : 'Not attempted yet'}
+                </p>
+              )}
             </button>
           );
         })}
@@ -222,7 +228,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setDifficulty(d)}
                   aria-pressed={difficulty === d}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+                  className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
                     difficulty === d
                       ? 'bg-accent text-white dark:bg-accent-dark'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -243,7 +249,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setCount(n)}
                   aria-pressed={count === n}
-                  className={`rounded-lg px-4 py-1.5 text-sm font-medium ${
+                  className={`min-h-11 touch-manipulation rounded-lg px-4 py-1.5 text-sm font-medium ${
                     count === n
                       ? 'bg-accent text-white dark:bg-accent-dark'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -266,7 +272,7 @@ export default function Home() {
                       type="button"
                       onClick={() => settings.set('latinAlphabet', id)}
                       aria-pressed={settings.latinAlphabet === id}
-                      className={`rounded-lg px-2.5 py-1.5 text-sm font-medium ${
+                      className={`min-h-11 touch-manipulation rounded-lg px-2.5 py-1.5 text-sm font-medium ${
                         settings.latinAlphabet === id
                           ? 'bg-accent text-white dark:bg-accent-dark'
                           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -302,7 +308,7 @@ export default function Home() {
                   type="button"
                   onClick={() => setMode(value)}
                   aria-pressed={mode === value}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium ${
                     mode === value
                       ? 'bg-accent text-white dark:bg-accent-dark'
                       : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -379,18 +385,20 @@ export default function Home() {
         </div>
       </div>
 
-      {recent.length > 0 && (
+      {(!history.loaded || recent.length > 0) && (
         <div className="mt-6">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
               Recent sessions
             </h2>
-            <Link to="/history" className="text-sm font-semibold text-accent hover:underline dark:text-accent-dark">
+            <Link to="/history" className="text-sm font-semibold text-accent hover:underline dark:text-accent-bright">
               All history →
             </Link>
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {recent.map((s) => (
+            {!history.loaded
+              ? Array.from({ length: 3 }, (_, i) => <SkeletonCard key={i} lines={2} />)
+              : recent.map((s) => (
               <Link
                 key={s.id}
                 to={`/review/${s.id}`}

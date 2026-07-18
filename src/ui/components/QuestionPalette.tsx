@@ -43,7 +43,7 @@ export default function QuestionPalette({
                 current
                   ? 'bg-accent text-white'
                   : answered
-                    ? 'bg-accent-tint text-accent dark:bg-accent/25 dark:text-accent-dark'
+                    ? 'bg-accent-tint text-accent dark:bg-accent/25 dark:text-accent-bright'
                     : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400'
               } ${flagged ? 'ring-2 ring-warning' : ''}`}
             >

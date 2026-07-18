@@ -62,7 +62,7 @@ export default function TopBar() {
                 className={({ isActive }) =>
                   `rounded-lg px-1 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
                     isActive
-                      ? 'bg-accent-tint text-accent dark:bg-accent/20 dark:text-accent-dark'
+                      ? 'bg-accent-tint text-accent dark:bg-accent/20 dark:text-accent-bright'
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
                   }`
                 }

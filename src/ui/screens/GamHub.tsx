@@ -148,11 +148,20 @@ export default function GamHub() {
         </div>
         <Link
           to="/dmat-info"
-          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-zinc-50 dark:border-zinc-700 dark:text-accent-dark dark:hover:bg-zinc-800"
+          className="inline-flex min-h-11 touch-manipulation items-center rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-semibold text-accent hover:bg-zinc-50 dark:border-zinc-700 dark:text-accent-bright dark:hover:bg-zinc-800"
         >
           Do I need the dMAT? →
         </Link>
       </div>
+
+      <img
+        src="media/gam-hero.webp"
+        alt=""
+        aria-hidden="true"
+        width="1344"
+        height="768"
+        className="mt-4 max-h-44 w-full rounded-card border border-zinc-200 object-cover shadow-card sm:max-h-56 dark:border-zinc-800 dark:opacity-90"
+      />
 
       <ul className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
         {[
@@ -219,7 +228,7 @@ export default function GamHub() {
                 type="button"
                 onClick={() => setDifficulty(d)}
                 aria-pressed={difficulty === d}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+                className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
                   difficulty === d
                     ? 'bg-accent text-white dark:bg-accent-dark'
                     : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -243,7 +252,7 @@ export default function GamHub() {
           <button
             type="button"
             onClick={() => startDrill(2)}
-            className="rounded-xl border-2 border-accent px-4 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/10"
+            className="rounded-xl border-2 border-accent px-4 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/10"
           >
             Topic drill
             <span className="block text-xs font-normal opacity-80">
@@ -253,7 +262,7 @@ export default function GamHub() {
           <button
             type="button"
             onClick={() => startDrill(3)}
-            className="rounded-xl border-2 border-accent px-4 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/10"
+            className="rounded-xl border-2 border-accent px-4 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/10"
           >
             Timed set
             <span className="block text-xs font-normal opacity-80">3 passages · ≈50 min</span>
@@ -294,7 +303,7 @@ export default function GamHub() {
           <button
             type="button"
             onClick={startFullDmat}
-            className="mt-4 rounded-xl border-2 border-accent px-6 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-dark dark:hover:bg-accent/10"
+            className="mt-4 rounded-xl border-2 border-accent px-6 py-3 font-semibold text-accent transition-colors hover:bg-accent-tint/50 dark:border-accent-dark dark:text-accent-bright dark:hover:bg-accent/10"
           >
             Start full dMAT
           </button>

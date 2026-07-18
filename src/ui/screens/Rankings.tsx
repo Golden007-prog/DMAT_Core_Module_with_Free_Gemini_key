@@ -14,6 +14,7 @@ import { POINTS_PER_CORRECT, MIXED_SET_MULTIPLIER, computeSessionPoints } from '
 import { computeAchievements } from '../../state/achievements';
 import { useHistory } from '../../state/historyStore';
 import { cloudEnabled } from '../../cloud/supabaseClient';
+import { EmptyRankingsArt } from '../components/EmptyArt';
 
 function LeagueBadge({ row }: { row: LeaderboardRow }) {
   return (
@@ -48,6 +49,8 @@ export default function Rankings() {
   const [me, setMe] = useState<LeaderboardRow | null>(null);
   const [week, setWeek] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reload, setReload] = useState(0);
   const [tab, setTab] = useState<'this' | 'last'>('this');
   const [module, setModule] = useState<RankingModule>('combined');
   const history = useHistory();
@@ -60,18 +63,25 @@ export default function Rankings() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(false);
     const target = tab === 'this' ? weekKey() : shiftedWeekKey(-1);
-    void fetchWeeklyLeaderboard(100, target, module).then((r) => {
-      if (cancelled) return;
-      setRows(r.rows);
-      setMe(r.me);
-      setWeek(r.week);
-      setLoading(false);
-    });
+    void fetchWeeklyLeaderboard(100, target, module)
+      .then((r) => {
+        if (cancelled) return;
+        setRows(r.rows);
+        setMe(r.me);
+        setWeek(r.week);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError(true);
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [tab, module]);
+  }, [tab, module, reload]);
 
   const upgrade = me ? nextLeague(me.points) : LEAGUES[1];
 
@@ -114,7 +124,7 @@ export default function Rankings() {
             type="button"
             onClick={() => setTab(value)}
             aria-pressed={tab === value}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium ${
               tab === value
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -138,7 +148,7 @@ export default function Rankings() {
             type="button"
             onClick={() => setModule(value)}
             aria-pressed={module === value}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium ${
               module === value
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -218,9 +228,24 @@ export default function Rankings() {
       <div className="mt-3 overflow-hidden rounded-card border border-zinc-200 bg-surface shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt">
         {loading ? (
           <p className="p-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Loading the board…</p>
+        ) : error ? (
+          <div className="p-6 text-center">
+            <p className="font-semibold">Couldn't load the leaderboard — you might be offline.</p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Your points are saved and will show once you reconnect.
+            </p>
+            <button
+              type="button"
+              onClick={() => setReload((n) => n + 1)}
+              className="mt-3 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover"
+            >
+              Retry
+            </button>
+          </div>
         ) : rows.length === 0 ? (
           <div className="p-6 text-center">
-            <p className="font-semibold">The board is empty this week.</p>
+            <EmptyRankingsArt className="mx-auto h-32 w-32" />
+            <p className="mt-3 font-semibold">The board is empty this week.</p>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               {cloudEnabled
                 ? 'Be the first: finish any set and claim #1.'
@@ -242,7 +267,7 @@ export default function Rankings() {
                   r.isMe ? 'bg-accent-tint/50 dark:bg-accent/10' : ''
                 }`}
               >
-                <span className={`w-8 text-right font-bold tabular-nums ${r.rank <= 3 ? 'text-accent dark:text-accent-dark' : 'text-zinc-400'}`}>
+                <span className={`w-8 text-right font-bold tabular-nums ${r.rank <= 3 ? 'text-accent dark:text-accent-bright' : 'text-zinc-400'}`}>
                   {r.rank}
                 </span>
                 <Avatar row={r} />

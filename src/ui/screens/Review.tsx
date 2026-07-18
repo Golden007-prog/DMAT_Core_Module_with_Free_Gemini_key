@@ -11,6 +11,7 @@ import LatinQuestionView from '../questions/LatinQuestionView';
 import GamQuestionView from '../questions/GamQuestionView';
 import SequencePlayer from '../components/SequencePlayer';
 import ExplainWithAi from '../components/ExplainWithAi';
+import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { formatMs } from '../format';
 
 function ReviewQuestion({ question, session, index }: { question: Question; session: Session; index: number }) {
@@ -38,7 +39,7 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
         {timeMs !== undefined && (
           <span className="text-xs text-zinc-500 dark:text-zinc-400">took {formatMs(timeMs)}</span>
         )}
-        <span className="ml-auto text-xs capitalize text-zinc-400 dark:text-zinc-500">{question.difficulty}</span>
+        <span className="ml-auto text-xs capitalize text-zinc-500 dark:text-zinc-400">{question.difficulty}</span>
       </header>
 
       {question.type === 'figures' && (
@@ -60,7 +61,7 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
       )}
 
       <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold">Explanation</h3>
+        <h2 className="text-sm font-semibold">Explanation</h2>
         {latinExplain?.summary && (
           <p className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
             {latinExplain.summary}
@@ -107,24 +108,43 @@ export default function Review() {
   const { sessionId } = useParams();
   const active = useSession((s) => s.session);
   const [session, setSession] = useState<Session | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<ReviewFilter>('all');
 
   useEffect(() => {
     if (active && active.id === sessionId) {
       setSession(active);
+      setLoaded(true);
       if (active.state === 'finished') sessionStore.getState().markReviewed();
     } else if (sessionId) {
+      setLoaded(false);
       void getStorage()
         .then((s) => s.getSession(sessionId))
-        .then((s) => setSession(s ?? null));
+        .then((s) => {
+          setSession(s ?? null);
+          setLoaded(true);
+        });
+    } else {
+      setLoaded(true);
     }
   }, [active, sessionId]);
 
   if (!session || session.questions.length === 0) {
+    if (!loaded) {
+      return (
+        <section className="mx-auto max-w-4xl" aria-busy="true">
+          <Skeleton className="h-8 w-32" />
+          <div className="mt-4 space-y-6">
+            <SkeletonCard lines={4} />
+            <SkeletonCard lines={4} />
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="py-10 text-center text-zinc-500 dark:text-zinc-400">
         <p>No session to review here.</p>
-        <Link to="/history" className="mt-3 inline-block font-semibold text-accent hover:underline dark:text-accent-dark">
+        <Link to="/history" className="mt-3 inline-block font-semibold text-accent hover:underline dark:text-accent-bright">
           Browse your history
         </Link>
       </section>
@@ -163,7 +183,7 @@ export default function Review() {
         <h1 className="text-2xl font-bold">Review</h1>
         <Link
           to={`/results/${session.id}`}
-          className="text-sm font-semibold text-accent hover:underline dark:text-accent-dark"
+          className="text-sm font-semibold text-accent hover:underline dark:text-accent-bright"
         >
           Back to results
         </Link>
@@ -176,7 +196,7 @@ export default function Review() {
             type="button"
             onClick={() => setFilter(f)}
             aria-pressed={filter === f}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
+            className={`min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${
               filter === f
                 ? 'bg-accent text-white dark:bg-accent-dark'
                 : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'

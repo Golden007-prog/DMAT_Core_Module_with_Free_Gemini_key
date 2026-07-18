@@ -29,8 +29,21 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // media/*.webp is deliberately NOT precached — marketing images load
+        // runtime-cached so the install size stays lean
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['media/**'],
         navigateFallback: `${base}index.html`,
+        runtimeCaching: [
+          {
+            urlPattern: /\/media\/.*\.webp$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'media',
+              expiration: { maxEntries: 24, maxAgeSeconds: 60 * 60 * 24 * 90 },
+            },
+          },
+        ],
       },
     }),
   ],

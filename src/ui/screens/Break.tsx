@@ -79,7 +79,7 @@ export default function Break() {
         )}
       </p>
       <p
-        className="timer-digits mt-8 text-6xl font-bold text-accent dark:text-accent-dark"
+        className="timer-digits mt-8 text-6xl font-bold text-accent dark:text-accent-bright"
         aria-live="polite"
       >
         {formatBreak(secondsLeft)}

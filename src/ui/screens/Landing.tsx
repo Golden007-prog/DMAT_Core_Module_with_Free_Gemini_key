@@ -60,7 +60,7 @@ const LANDING_FAQ: Array<{ q: string; a: React.ReactNode }> = [
         From the Summer Semester 2027 intake, Indian Master&rsquo;s applicants whose previous degree
         is in Engineering, Commerce/Accounting/Finance/Economics, or Business/Management take the
         dMAT with the General Academic Module as part of the APS process.{' '}
-        <Link to="/dmat-info" className="font-semibold text-accent underline dark:text-accent-dark">
+        <Link to="/dmat-info" className="font-semibold text-accent underline dark:text-accent-bright">
           Check your degree against the official list →
         </Link>
       </>
@@ -123,7 +123,7 @@ export default function Landing() {
     <div className="mx-auto max-w-5xl">
       <section className="grid items-center gap-8 py-6 sm:gap-10 sm:py-8 lg:grid-cols-[1.2fr_1fr] lg:py-14">
         <div className="order-2 lg:order-1">
-          <p className="text-sm font-semibold tracking-wide text-accent uppercase dark:text-accent-dark">
+          <p className="text-sm font-semibold tracking-wide text-accent uppercase dark:text-accent-bright">
             Free practice for the complete dMAT
           </p>
           <h1 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">
@@ -137,7 +137,7 @@ export default function Landing() {
             applicants need both modules for the APS process.{' '}
             <Link
               to="/dmat-info"
-              className="font-semibold text-accent underline dark:text-accent-dark"
+              className="font-semibold text-accent underline dark:text-accent-bright"
             >
               Do I need the dMAT?
             </Link>
@@ -145,7 +145,7 @@ export default function Landing() {
           <ul className="mt-6 space-y-4">
             {FEATURES.map((f) => (
               <li key={f.title} className="flex gap-3">
-                <span aria-hidden="true" className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-tint text-xs font-bold text-accent dark:bg-accent/20 dark:text-accent-dark">
+                <span aria-hidden="true" className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-tint text-xs font-bold text-accent dark:bg-accent/20 dark:text-accent-bright">
                   ✓
                 </span>
                 <div>
@@ -189,7 +189,7 @@ export default function Landing() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base dark:border-zinc-700 dark:bg-zinc-900"
                     required
                   />
                 </label>
@@ -201,7 +201,7 @@ export default function Landing() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     minLength={6}
-                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base dark:border-zinc-700 dark:bg-zinc-900"
                     required
                   />
                 </label>
@@ -230,14 +230,14 @@ export default function Landing() {
                 {mode === 'signin' ? (
                   <>
                     New here?{' '}
-                    <button type="button" onClick={() => { setMode('signup'); setError(null); }} className="font-semibold text-accent hover:underline dark:text-accent-dark">
+                    <button type="button" onClick={() => { setMode('signup'); setError(null); }} className="font-semibold text-accent hover:underline dark:text-accent-bright">
                       Create an account
                     </button>
                   </>
                 ) : (
                   <>
                     Already registered?{' '}
-                    <button type="button" onClick={() => { setMode('signin'); setError(null); }} className="font-semibold text-accent hover:underline dark:text-accent-dark">
+                    <button type="button" onClick={() => { setMode('signin'); setError(null); }} className="font-semibold text-accent hover:underline dark:text-accent-bright">
                       Sign in
                     </button>
                   </>
@@ -253,6 +253,20 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="pb-8" aria-hidden="true">
+        <picture>
+          <source media="(max-width: 640px)" srcSet="media/hero-landing-mobile.webp" />
+          <img
+            src="media/hero-landing.webp"
+            alt=""
+            width="1344"
+            height="768"
+            fetchPriority="high"
+            className="mx-auto w-full max-w-4xl rounded-card border border-zinc-200 shadow-card dark:border-zinc-800 dark:opacity-90"
+          />
+        </picture>
+      </section>
+
       <section className="pb-4">
         <h2 className="text-center text-2xl font-bold">Two modules, one sitting</h2>
         <div className="mx-auto mt-5 grid max-w-3xl gap-4 sm:grid-cols-2">
@@ -262,7 +276,7 @@ export default function Landing() {
               className="rounded-card border border-zinc-200 bg-surface p-5 shadow-card dark:border-zinc-800 dark:bg-surface-dark-alt"
             >
               <h3 className="font-bold">{m.name}</h3>
-              <p className="mt-0.5 text-xs font-medium text-accent dark:text-accent-dark">{m.detail}</p>
+              <p className="mt-0.5 text-xs font-medium text-accent dark:text-accent-bright">{m.detail}</p>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{m.body}</p>
             </div>
           ))}

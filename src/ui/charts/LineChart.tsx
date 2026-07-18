@@ -80,7 +80,11 @@ export default function LineChart({
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
         role="img"
-        aria-label={`Line chart with ${series.length} series`}
+        aria-label={
+          series.length
+            ? `Line chart. ${series.map((s) => `${s.name}: latest ${yFormat(s.points[s.points.length - 1]?.y ?? 0)}`).join('; ')}`
+            : 'Line chart with no data'
+        }
       >
         {yTicks.map((t) => (
           <g key={t}>

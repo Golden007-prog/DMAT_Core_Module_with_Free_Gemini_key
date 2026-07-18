@@ -94,7 +94,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 function Tip({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-      <span aria-hidden="true" className="text-accent dark:text-accent-dark">▸</span>
+      <span aria-hidden="true" className="text-accent dark:text-accent-bright">▸</span>
       <span>{children}</span>
     </li>
   );
@@ -166,7 +166,7 @@ export default function Learn() {
   }, [query, subtest, level, hideLearned, learned]);
 
   const chipClass = (active: boolean) =>
-    `rounded-lg px-3 py-1.5 text-sm font-medium ${
+    `min-h-11 touch-manipulation rounded-lg px-3 py-1.5 text-sm font-medium ${
       active
         ? 'bg-accent text-white dark:bg-accent-dark'
         : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
@@ -289,7 +289,7 @@ export default function Learn() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="bounce, hidden single, x+1, hub…"
-            className="mt-1 w-full rounded-lg border border-zinc-200 bg-surface px-3 py-2 text-sm dark:border-zinc-700 dark:bg-surface-dark"
+            className="mt-1 w-full rounded-lg border border-zinc-200 bg-surface px-3 py-2 text-base sm:text-sm dark:border-zinc-700 dark:bg-surface-dark"
           />
         </div>
 
@@ -365,7 +365,7 @@ export default function Learn() {
             href="https://www.d-mat.de"
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-accent hover:underline dark:text-accent-dark"
+            className="font-semibold text-accent hover:underline dark:text-accent-bright"
           >
             d-mat.de
           </a>{' '}

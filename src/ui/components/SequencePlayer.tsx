@@ -39,7 +39,7 @@ export default function SequencePlayer({ frames }: { frames: Frame[] }) {
       </div>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Frame {index + 1} / {frames.length}
-        {index >= 4 && <span className="ml-1 font-medium text-accent dark:text-accent-dark">(Image {index - 3})</span>}
+        {index >= 4 && <span className="ml-1 font-medium text-accent dark:text-accent-bright">(Image {index - 3})</span>}
       </p>
       <div className="flex gap-2">
         <button

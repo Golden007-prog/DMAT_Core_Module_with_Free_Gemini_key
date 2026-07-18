@@ -163,7 +163,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <RouteHead />
       <TopBar />
       {readOnly && (
@@ -179,6 +179,8 @@ export default function App() {
       <RouteReset mainId="main-content" />
       <main
         id="main-content"
+        // RouteReset moves focus here on navigation — focusable, ring suppressed
+        tabIndex={-1}
         className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 pb-24 outline-none sm:px-6 sm:pb-6"
       >
         {bootstrapped && (
