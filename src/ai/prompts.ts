@@ -3,6 +3,7 @@ import type {
   EquationQuestion,
   FigureQuestion,
   Frame,
+  GamQuestion,
   LatinLetter,
   LatinQuestion,
   PlacedSymbol,
@@ -513,6 +514,30 @@ function latinTask(question: LatinQuestion, userAnswer: unknown): string {
   ].join('\n');
 }
 
+function gamTask(question: GamQuestion, userAnswer: unknown): string {
+  const picked =
+    typeof userAnswer === 'number' && userAnswer >= 0 && userAnswer <= 3
+      ? question.options[userAnswer]
+      : null;
+  const correct = question.options[question.correct];
+  return [
+    'THE TASK — General Academic Module: a single-choice question about a reading passage. The passage taught everything needed; four options, exactly one correct.',
+    `Question: ${question.stem}`,
+    `Options: ${question.options.map((o, i) => `${'abcd'[i]}) ${o}`).join('  |  ')}`,
+    `Correct answer: ${correct}`,
+    `Author's worked solution: ${question.explanation}`,
+    '',
+    'THE LEARNER',
+    picked === null
+      ? 'They left it blank. Show how to eliminate the three wrong options efficiently, then confirm the remaining one.'
+      : picked === correct
+        ? `They chose "${picked}", which is correct — treat this as a request to understand the reasoning fully.`
+        : `They chose "${picked}" (correct: "${correct}"). Name the specific misconception their choice encodes, then walk the correct reasoning.`,
+    '',
+    'Ground every step in the worked solution above — never invent facts beyond it. Refer to options by their content, not their letters.',
+  ].join('\n');
+}
+
 /* --- entry point ---------------------------------------------------------- */
 
 export function explainMistakePrompt(question: Question, userAnswer: unknown): string {
@@ -521,7 +546,9 @@ export function explainMistakePrompt(question: Question, userAnswer: unknown): s
       ? equationsTask(question, userAnswer)
       : question.type === 'figures'
         ? figuresTask(question, userAnswer)
-        : latinTask(question, userAnswer);
+        : question.type === 'gam'
+          ? gamTask(question, userAnswer)
+          : latinTask(question, userAnswer);
 
   return [
     EXPLAIN_ROLE,

@@ -15,6 +15,7 @@ import RouteReset from './ui/shell/RouteReset';
 import Footer from './ui/shell/Footer';
 import ToastHost from './ui/components/Toast';
 import Home from './ui/screens/Home';
+import GamHub from './ui/screens/GamHub';
 import Runner from './ui/screens/Runner';
 import Results from './ui/screens/Results';
 import Review from './ui/screens/Review';
@@ -137,6 +138,7 @@ export default function App() {
           <Routes>
             <Route path="/welcome" element={<Landing />} />
             <Route path="/" element={<AuthGate><Home /></AuthGate>} />
+            <Route path="/gam" element={<AuthGate><GamHub /></AuthGate>} />
             <Route path="/run" element={<AuthGate><Runner /></AuthGate>} />
             <Route path="/results/:sessionId" element={<AuthGate><Results /></AuthGate>} />
             <Route path="/review/:sessionId" element={<AuthGate><Review /></AuthGate>} />

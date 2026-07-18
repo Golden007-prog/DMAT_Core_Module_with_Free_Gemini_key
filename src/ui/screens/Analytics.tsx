@@ -18,6 +18,7 @@ const SUBTEST_NAMES: Record<SubtestType, string> = {
   figures: 'Figures',
   equations: 'Equations',
   latin: 'Latin Squares',
+  gam: 'General Academic',
 };
 
 const MIN_TAG_ATTEMPTS = 5;

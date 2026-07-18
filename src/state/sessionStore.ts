@@ -1,10 +1,17 @@
 import { createStore, useStore, type StoreApi } from 'zustand';
-import type { Question, Session } from '../engine/types';
+import type { GamPassage, GamPassageDoc, Question, Session } from '../engine/types';
 import {
   generateQuestionAt as engineGenerateQuestionAt,
   validateQuestion,
   type GenerateSetConfig,
 } from '../engine/generateSet';
+import {
+  assembleGamExam,
+  assembleGamSet,
+  GAM_EXAM,
+  GAM_MS_PER_QUESTION,
+} from '../engine/gam/assemble';
+import { loadGamBank } from '../content/gam';
 import {
   fetchCachedSet as cloudFetchCachedSet,
   pushGeneratedSet as cloudPushGeneratedSet,
@@ -33,6 +40,8 @@ export interface SessionDeps {
   /** cloud set cache (signed-in users): instant exact retries, AI-set recall */
   fetchCachedSet: (cfg: GenerateSetConfig) => Promise<CachedSet | null>;
   pushGeneratedSet: (cfg: GenerateSetConfig, questions: Question[], source: string) => Promise<void>;
+  /** lazy GAM passage bank (own chunk); injectable for tests */
+  loadGamBank: () => Promise<GamPassage[]>;
 }
 
 export interface SessionStore {
@@ -50,6 +59,7 @@ export interface SessionStore {
   startSessionFromQuestions(
     questions: Question[],
     meta: Pick<SessionConfig, 'mode' | 'subtest' | 'difficulty'>,
+    opts?: { gamPassages?: GamPassageDoc[] },
   ): Promise<void>;
   cancelGeneration(): void;
   start(): void;
@@ -77,6 +87,7 @@ const defaultDeps: SessionDeps = {
   aiEquationSet: fetchAiEquationSet,
   fetchCachedSet: cloudFetchCachedSet,
   pushGeneratedSet: cloudPushGeneratedSet,
+  loadGamBank,
 };
 
 export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreApi<SessionStore> {
@@ -140,6 +151,84 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
 
       async startNewSession(cfgIn, opts = {}) {
         if (get().readOnly) return; // second tab is read-only
+
+        // GAM sets are assembled whole from the passage bank — no per-question
+        // generation loop, but the same R1/R2/R3/R6 discipline applies.
+        if (cfgIn.subtest === 'gam') {
+          currentAbort?.abort();
+          const abort = new AbortController();
+          currentAbort = abort;
+          deps.timer.disarm();
+
+          const seed = opts.keepSeed ? cfgIn.seed : deps.newSeed();
+          // provisional GENERATING session so the runner shows progress while
+          // the bank chunk loads; rebuilt with real counts before READY (R3)
+          let session = createSession({ ...cfgIn, seed, questionCount: 0 });
+          session = transition(session, { type: 'GENERATE' });
+          const sid = session.id;
+          set({
+            session,
+            lastConfig: null,
+            progress: null,
+            remainingMs: 0,
+            currentIndex: 0,
+            questionShownAt: null,
+          });
+
+          const bank = await deps.loadGamBank();
+          if (abort.signal.aborted || get().session?.id !== sid) return;
+
+          // exam without explicit shape → official-style blueprint draw
+          const exam =
+            cfgIn.mode === 'exam' && !cfgIn.gamPassageCount && !cfgIn.gamTopicAreas?.length;
+          const assembled = exam
+            ? assembleGamExam(seed, bank)
+            : assembleGamSet(
+                {
+                  seed,
+                  passageCount: cfgIn.gamPassageCount ?? 1,
+                  topicAreas: cfgIn.gamTopicAreas,
+                  difficulty: cfgIn.difficulty,
+                },
+                bank,
+              );
+          for (const q of assembled.questions) {
+            const check = validateQuestion(q); // R6: bank content is not trusted blindly
+            if (!check.ok) {
+              throw new Error(`gam bank question failed validation: ${check.reasons.join('; ')}`);
+            }
+          }
+
+          const cfg: SessionConfig = {
+            ...cfgIn,
+            seed,
+            questionCount: assembled.questions.length,
+            durationMs:
+              cfgIn.durationMs ??
+              (exam
+                ? GAM_EXAM.durationMs
+                : assembled.questions.length * GAM_MS_PER_QUESTION),
+          };
+          const rebuilt: Session = {
+            ...session,
+            questionCount: cfg.questionCount,
+            durationMs: cfg.durationMs!,
+            gamPassages: assembled.passages,
+            gamTopicAreas: cfgIn.gamTopicAreas,
+          };
+          const ready = transition(rebuilt, { type: 'GENERATED', questions: assembled.questions });
+          if (abort.signal.aborted || get().session?.id !== sid) return;
+          set({
+            session: ready,
+            lastConfig: cfg,
+            progress: null,
+            remainingMs: ready.durationMs,
+            currentIndex: 0,
+            questionShownAt: null,
+          });
+          return;
+        }
+
         // R1: abort any in-flight generation, destroy the old session,
         // new session object with a NEW RNG seed, full fresh set, atomically.
         currentAbort?.abort();
@@ -231,15 +320,19 @@ export function createSessionStore(overrides: Partial<SessionDeps> = {}): StoreA
         void deps.pushGeneratedSet(genCfg, questions, 'deterministic').catch(() => {});
       },
 
-      async startSessionFromQuestions(questions, meta) {
+      async startSessionFromQuestions(questions, meta, opts) {
         currentAbort?.abort();
         deps.timer.disarm();
         const cfg: SessionConfig = {
           ...meta,
           questionCount: questions.length,
           seed: deps.newSeed(),
+          // gam pacing includes passage reading time — 75 s/task is far too short
+          durationMs:
+            meta.subtest === 'gam' ? questions.length * GAM_MS_PER_QUESTION : undefined,
         };
         let session = createSession(cfg);
+        if (opts?.gamPassages?.length) session = { ...session, gamPassages: opts.gamPassages };
         session = transition(session, { type: 'GENERATE' });
         session = transition(session, { type: 'GENERATED', questions });
         set({

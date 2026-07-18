@@ -10,6 +10,7 @@ const SUBTEST_NAMES: Record<SubtestType, string> = {
   figures: 'Figures',
   equations: 'Equations',
   latin: 'Latin Squares',
+  gam: 'General Academic',
 };
 
 interface MistakeEntry {
@@ -154,7 +155,9 @@ export default function Mistakes() {
                     ? m.question.equationsDisplay.join('  ·  ')
                     : m.question.type === 'latin'
                       ? `Find the "?" — depth ${m.question.inferenceDepth}`
-                      : m.question.ruleDescriptions[0]}
+                      : m.question.type === 'gam'
+                        ? m.question.stem
+                        : m.question.ruleDescriptions[0]}
                 </span>
                 <span className="text-xs whitespace-nowrap text-zinc-400">
                   {new Date(m.when).toLocaleDateString()}

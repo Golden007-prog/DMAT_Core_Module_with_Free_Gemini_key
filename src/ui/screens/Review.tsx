@@ -3,11 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { sessionStore, useSession } from '../../state/sessionStore';
 import { getStorage } from '../../storage/db';
 import { isAnswerCorrect } from '../../state/scoring';
-import type { FigureAnswer, LatinLetter, Question, Session } from '../../engine/types';
+import type { FigureAnswer, GamAnswer, LatinLetter, Question, Session } from '../../engine/types';
 import { explainLatinQuestion } from '../../engine/latinSquares/explain';
 import FigureQuestionView from '../questions/FigureQuestionView';
 import EquationQuestionView from '../questions/EquationQuestionView';
 import LatinQuestionView from '../questions/LatinQuestionView';
+import GamQuestionView from '../questions/GamQuestionView';
 import SequencePlayer from '../components/SequencePlayer';
 import ExplainWithAi from '../components/ExplainWithAi';
 import { formatMs } from '../format';
@@ -49,6 +50,14 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
       {question.type === 'latin' && (
         <LatinQuestionView question={question} answer={answer as LatinLetter | undefined} reveal />
       )}
+      {question.type === 'gam' && (
+        <GamQuestionView
+          question={question}
+          passage={session.gamPassages?.find((p) => p.id === question.passageId)}
+          answer={answer as GamAnswer | undefined}
+          reveal
+        />
+      )}
 
       <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
         <h3 className="text-sm font-semibold">Explanation</h3>
@@ -67,7 +76,9 @@ function ReviewQuestion({ question, session, index }: { question: Question; sess
           <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
             {(question.type === 'figures'
               ? question.ruleDescriptions
-              : question.explanationSteps
+              : question.type === 'gam'
+                ? [question.explanation]
+                : question.explanationSteps
             ).map((step, i) => (
               <li key={i}>{step}</li>
             ))}

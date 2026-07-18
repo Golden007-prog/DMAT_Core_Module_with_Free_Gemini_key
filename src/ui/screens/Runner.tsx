@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { sessionStore, useSession } from '../../state/sessionStore';
 import { useSettings } from '../../state/settingsStore';
 import { isAnswerCorrect } from '../../state/scoring';
-import type { FigureAnswer, LatinLetter, Question } from '../../engine/types';
+import type { FigureAnswer, GamAnswer, LatinLetter, Question } from '../../engine/types';
 import { explainLatinQuestion } from '../../engine/latinSquares/explain';
 import TimerDisplay from '../components/TimerDisplay';
 import QuestionPalette from '../components/QuestionPalette';
@@ -11,6 +11,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FigureQuestionView from '../questions/FigureQuestionView';
 import EquationQuestionView from '../questions/EquationQuestionView';
 import LatinQuestionView from '../questions/LatinQuestionView';
+import GamQuestionView from '../questions/GamQuestionView';
 import { formatMs } from '../format';
 import { fxCorrect, fxWrong, fxTimeWarning } from '../feedbackFx';
 
@@ -18,6 +19,7 @@ const SUBTEST_NAMES = {
   figures: 'Figure Sequences',
   equations: 'Mathematical Equations',
   latin: 'Latin Squares',
+  gam: 'General Academic Module',
 } as const;
 
 const LATIN_KEYS: LatinLetter[] = ['A', 'B', 'C', 'D', 'E'];
@@ -40,6 +42,11 @@ function QuestionBody({
   onCommit: (value: unknown) => void;
 }) {
   const answer = useSession((s) => s.session?.answers[question.id]);
+  const gamPassage = useSession((s) =>
+    question.type === 'gam'
+      ? s.session?.gamPassages?.find((p) => p.id === question.passageId)
+      : undefined,
+  );
   const editable = !reveal;
   switch (question.type) {
     case 'figures':
@@ -70,11 +77,21 @@ function QuestionBody({
           hoverAid={practice}
         />
       );
+    case 'gam':
+      return (
+        <GamQuestionView
+          question={question}
+          passage={gamPassage}
+          answer={answer as GamAnswer | undefined}
+          onAnswer={editable ? onCommit : undefined}
+          reveal={reveal}
+        />
+      );
   }
 }
 
 /** Live elapsed time on the current question (updates every second). */
-function QuestionElapsed() {
+function QuestionElapsed({ budgetS = 75 }: { budgetS?: number }) {
   const shownAt = useSession((s) => s.questionShownAt);
   const [, force] = useState(0);
   useEffect(() => {
@@ -86,21 +103,30 @@ function QuestionElapsed() {
   return (
     <span
       className={`timer-digits hidden rounded px-1.5 text-xs sm:inline ${
-        s > 75 ? 'text-warning' : 'text-zinc-400 dark:text-zinc-500'
+        s > budgetS ? 'text-warning' : 'text-zinc-400 dark:text-zinc-500'
       }`}
-      title="Time on this question (75 s budget per task)"
+      title={`Time on this question (${budgetS} s budget per task)`}
     >
       {s}s
     </span>
   );
 }
 
-function ShortcutsOverlay({ onClose, isLatin }: { onClose: () => void; isLatin: boolean }) {
+function ShortcutsOverlay({
+  onClose,
+  isLatin,
+  isGam,
+}: {
+  onClose: () => void;
+  isLatin: boolean;
+  isGam: boolean;
+}) {
   const rows: Array<[string, string]> = [
-    ['1 – 3 / 1 – 5', 'Choose an answer option'],
+    [isGam ? '1 – 4' : '1 – 3 / 1 – 5', 'Choose an answer option'],
     ...(isLatin
       ? ([['A – E or 1 – 5', 'Pick the 1st – 5th symbol']] as Array<[string, string]>)
       : []),
+    ...(isGam ? ([['A – D', 'Pick option a) – d)']] as Array<[string, string]>) : []),
     ['Enter or →', 'Next question / submit'],
     ['←', 'Previous question (practice)'],
     ['F', 'Flag for review (practice)'],
@@ -308,6 +334,13 @@ export default function Runner() {
       } else if (question.type === 'latin') {
         if (/^[a-eA-E]$/.test(e.key)) commit(e.key.toUpperCase() as LatinLetter);
         else if (/^[1-5]$/.test(e.key)) commit(LATIN_KEYS[Number(e.key) - 1]);
+      } else if (question.type === 'gam') {
+        // a–d or 1–4 pick an option ('f' stays the flag shortcut above)
+        if (/^[a-dA-D]$/.test(e.key)) {
+          commit((e.key.toLowerCase().charCodeAt(0) - 97) as GamAnswer);
+        } else if (/^[1-4]$/.test(e.key)) {
+          commit((Number(e.key) - 1) as GamAnswer);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -409,7 +442,9 @@ export default function Runner() {
   const latinExplain = question.type === 'latin' ? explainLatinQuestion(question) : null;
 
   return (
-    <section className="mx-auto max-w-4xl pb-24 sm:pb-0">
+    <section
+      className={`mx-auto pb-24 sm:pb-0 ${question.type === 'gam' ? 'max-w-6xl' : 'max-w-4xl'}`}
+    >
       <header className="mb-4 flex items-center gap-2 sm:gap-3">
         <h1 className="hidden text-sm font-semibold sm:block sm:text-base">
           {SUBTEST_NAMES[question.type]}
@@ -417,7 +452,7 @@ export default function Runner() {
         <span className="text-sm text-zinc-500 dark:text-zinc-400">
           {currentIndex + 1} / {session.questions.length}
         </span>
-        <QuestionElapsed />
+        <QuestionElapsed budgetS={question.type === 'gam' ? 160 : 75} />
         {!settings.focusMode && (
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
             <div
@@ -531,7 +566,9 @@ export default function Runner() {
                 <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
                   {(question.type === 'figures'
                     ? question.ruleDescriptions
-                    : question.explanationSteps
+                    : question.type === 'gam'
+                      ? [question.explanation]
+                      : question.explanationSteps
                   ).map((step, i) => (
                     <li key={i}>{step}</li>
                   ))}
@@ -608,7 +645,11 @@ export default function Runner() {
       </footer>
 
       {showShortcuts && (
-        <ShortcutsOverlay onClose={() => setShowShortcuts(false)} isLatin={question.type === 'latin'} />
+        <ShortcutsOverlay
+          onClose={() => setShowShortcuts(false)}
+          isLatin={question.type === 'latin'}
+          isGam={question.type === 'gam'}
+        />
       )}
 
       <ConfirmDialog

@@ -2,8 +2,8 @@ import { useThemeStore } from '../../state/themeStore';
 
 /** Validated with the dataviz six-checks script against #FFFFFF and #1E1E24.
  *  Fixed order: figures → equations → latin (color follows the entity). */
-export const SERIES_LIGHT = { figures: '#A3195B', equations: '#2C5FA8', latin: '#3E9B4F' } as const;
-export const SERIES_DARK = { figures: '#D4437F', equations: '#5B8DDA', latin: '#4CAA69' } as const;
+export const SERIES_LIGHT = { figures: '#A3195B', equations: '#2C5FA8', latin: '#3E9B4F', gam: '#6D46B8' } as const;
+export const SERIES_DARK = { figures: '#D4437F', equations: '#5B8DDA', latin: '#4CAA69', gam: '#9B7BE0' } as const;
 
 export function useChartPalette() {
   const theme = useThemeStore((s) => s.theme);

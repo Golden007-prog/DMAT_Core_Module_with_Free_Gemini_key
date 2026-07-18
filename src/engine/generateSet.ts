@@ -7,6 +7,7 @@ import { generateEquationQuestion } from './equations/generator';
 import { validateEquationQuestion } from './equations/validate';
 import { generateLatinQuestion } from './latinSquares/generator';
 import { validateLatinQuestion } from './latinSquares/validate';
+import { validateGamQuestion } from './gam/validate';
 
 export interface GenerateSetConfig {
   subtest: SubtestType;
@@ -35,6 +36,8 @@ export function validateQuestion(q: Question): ValidationResult {
       return validateEquationQuestion(q);
     case 'latin':
       return validateLatinQuestion(q);
+    case 'gam':
+      return validateGamQuestion(q);
   }
 }
 
@@ -45,6 +48,11 @@ export function generateQuestionAt(cfg: GenerateSetConfig, index: number): Quest
   // derived per-question seed → any single question is independently replayable
   const prng = createPrng(deriveSeed(cfg.seed, index));
   let question: Question;
+  if (cfg.subtest === 'gam') {
+    // GAM sets are passage-based: assembled from the content bank
+    // (engine/gam/assemble), never generated question-by-question.
+    throw new Error('gam sets are assembled from the passage bank, not generated per question');
+  }
   switch (cfg.subtest) {
     case 'figures':
       question = generateFigureQuestion(difficulty, prng);

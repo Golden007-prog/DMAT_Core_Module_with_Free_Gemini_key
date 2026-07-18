@@ -57,6 +57,62 @@ function Confetti() {
   );
 }
 
+const STAGE_NAMES: Record<string, string> = {
+  figures: 'Figure Sequences',
+  equations: 'Mathematical Equations',
+  latin: 'Latin Squares',
+  gam: 'General Academic Module',
+};
+
+/** Per-part split for a finished staged run, plus a clearly-labeled
+ *  indicative 0–200-style figure (linear practice mapping — NOT the
+ *  official standardization, which cannot be derived from practice data). */
+function CombinedRunSummary({ sessionIds }: { sessionIds: string[] }) {
+  const [parts, setParts] = useState<Session[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStorage().then(async (s) => {
+      const loaded = await Promise.all(sessionIds.map((id) => s.getSession(id)));
+      if (!cancelled) setParts(loaded.filter((x): x is Session => !!x?.score));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionIds]);
+
+  if (parts.length < 2) return null;
+  const totalCorrect = parts.reduce((n, p) => n + p.score!.correct, 0);
+  const totalQuestions = parts.reduce((n, p) => n + p.score!.totalQuestions, 0);
+  const overall = totalQuestions === 0 ? 0 : totalCorrect / totalQuestions;
+  const indicative = Math.round(overall * 200);
+
+  return (
+    <div className="mt-3 rounded-lg border border-zinc-200 bg-surface p-4 text-left dark:border-zinc-700 dark:bg-surface-dark-alt">
+      <ul className="space-y-1.5 text-sm">
+        {parts.map((p) => (
+          <li key={p.id} className="flex items-center justify-between gap-3">
+            <span className="text-zinc-600 dark:text-zinc-300">
+              {STAGE_NAMES[p.subtest] ?? p.subtest}
+            </span>
+            <span className="font-semibold">
+              {p.score!.correct}/{p.score!.totalQuestions} · {formatPercent(p.score!.accuracy)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 border-t border-zinc-100 pt-3 text-sm dark:border-zinc-800">
+        Overall {totalCorrect}/{totalQuestions} ({formatPercent(overall)}) — indicative scale figure:{' '}
+        <strong>{indicative} / 200</strong>
+      </p>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        Linear practice mapping of your accuracy onto the 0–200 range — NOT the official
+        standardization, which is norm-referenced and cannot be derived from practice data.
+      </p>
+    </div>
+  );
+}
+
 function PointsRankLink({ hasPoints }: { hasPoints: boolean }) {
   const user = useAuth((s) => s.user);
   if (!hasPoints || !user) return null;
@@ -78,6 +134,9 @@ export default function Results() {
   const coreActive = useFullCore((s) => s.active);
   const coreAtBreak = useFullCore((s) => s.atBreak);
   const coreComplete = useFullCore((s) => s.complete);
+  const program = useFullCore((s) => s.program);
+  const nextBreakS = useFullCore((s) => s.nextBreakSeconds());
+  const runSessionIds = useFullCore((s) => s.sessionIds);
 
   useEffect(() => {
     if (active && active.id === sessionId) {
@@ -121,13 +180,7 @@ export default function Results() {
 
   const shareText = () => {
     const name =
-      session.subtest === 'figures'
-        ? 'Figure Sequences'
-        : session.subtest === 'equations'
-          ? 'Mathematical Equations'
-          : session.subtest === 'latin'
-            ? 'Latin Squares'
-            : 'Core Module';
+      STAGE_NAMES[session.subtest] ?? (session.subtest === 'full-dmat' ? 'Full dMAT' : 'Core Module');
     return `dMAT practice — ${name} (${session.difficulty}, ${session.questionCount} questions): ${formatPercent(score.accuracy)} accuracy, +${points.total} pts. Train free: https://golden007-prog.github.io/DMAT_Core_Module_with_Free_Gemini_key/`;
   };
 
@@ -258,21 +311,30 @@ export default function Results() {
 
       {coreActive && coreAtBreak && (
         <div className="mt-4 rounded-card border-2 border-accent/40 bg-accent-tint/50 p-5 dark:border-accent-dark/40 dark:bg-accent/10">
-          <p className="font-semibold">Full Core Module run in progress.</p>
+          <p className="font-semibold">
+            {program === 'full-dmat' ? 'Full dMAT simulation in progress.' : 'Full Core Module run in progress.'}
+          </p>
           <button
             type="button"
             onClick={() => navigate('/break')}
             className="mt-3 rounded-lg bg-accent px-5 py-2.5 font-semibold text-white hover:bg-accent-hover"
           >
-            Take the 60 s break → next subtest
+            {nextBreakS >= 600
+              ? 'Take the 30-minute module break → General Academic Module'
+              : 'Take the 60 s break → next subtest'}
           </button>
         </div>
       )}
       {coreActive && coreComplete && (
         <div className="mt-4 rounded-card border border-success/40 bg-success/5 p-5">
-          <p className="font-semibold text-success">Full Core Module run complete — all three subtests done.</p>
+          <p className="font-semibold text-success">
+            {program === 'full-dmat'
+              ? 'Full dMAT simulation complete — Core Module and General Academic Module done.'
+              : 'Full Core Module run complete — all three subtests done.'}
+          </p>
+          <CombinedRunSummary sessionIds={runSessionIds} />
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-            Find each subtest's result in your History for review.
+            Find each part's result in your History for review.
           </p>
           <button
             type="button"

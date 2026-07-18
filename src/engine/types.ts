@@ -1,7 +1,7 @@
 import type { LatinExplainStep } from './latinSquares/explain';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type SubtestType = 'figures' | 'equations' | 'latin';
+export type SubtestType = 'figures' | 'equations' | 'latin' | 'gam';
 
 export interface BaseQuestion {
   id: string;
@@ -124,7 +124,82 @@ export interface LatinQuestion extends BaseQuestion {
   alphabet?: 'letters' | 'digits' | 'greek' | 'shapes';
 }
 
-export type Question = FigureQuestion | EquationQuestion | LatinQuestion;
+/* ------------------------- General Academic Module ------------------------ */
+
+/** The eight official GAM topic areas (d-mat.de preparatory materials). */
+export type GamTopicArea =
+  | 'mathematics'
+  | 'computational-sciences'
+  | 'natural-sciences'
+  | 'engineering'
+  | 'business-administration'
+  | 'economics'
+  | 'social-sciences'
+  | 'humanities';
+
+export const GAM_TOPIC_AREAS: readonly GamTopicArea[] = [
+  'mathematics',
+  'computational-sciences',
+  'natural-sciences',
+  'engineering',
+  'business-administration',
+  'economics',
+  'social-sciences',
+  'humanities',
+];
+
+/** Inline SVG figure — offline-safe, crisp at any DPI, themeable via
+ *  currentColor. Referenced from passage/stem text as {{fig:id}}. */
+export interface GamFigure {
+  id: string;
+  svg: string;
+  caption: string;
+  alt: string;
+}
+
+/** Official format: single choice, exactly 4 options a)–d), exactly 1 correct.
+ *  ruleTags carry `gam.topic.<area>` + the skillTags so the existing
+ *  perRuleTag analytics work unchanged. */
+export interface GamQuestion extends BaseQuestion {
+  type: 'gam';
+  passageId: string;
+  /** may contain $KaTeX$ inline math and {{fig:id}} placeholders */
+  stem: string;
+  options: [string, string, string, string];
+  correct: 0 | 1 | 2 | 3;
+  /** worked solution referencing option CONTENT, never letters — option
+   *  order is shuffled per session unless lockOptionOrder is set */
+  explanation: string;
+  /** e.g. 'gam.skill.concept' | 'gam.skill.compute' | 'gam.skill.transfer'
+   *  | 'gam.skill.read-chart' */
+  skillTags: string[];
+  /** set when options form a logical sequence ("Only I", "Both", numeric
+   *  ladder…) that must not be shuffled */
+  lockOptionOrder?: boolean;
+}
+
+/** Passage doc as stored on a Session — the teaching input, without the
+ *  question list (questions live in Session.questions like every subtest). */
+export interface GamPassageDoc {
+  /** stable slug, e.g. 'econ-price-elasticity' */
+  id: string;
+  topicArea: GamTopicArea;
+  title: string;
+  /** supports **bold**, markdown tables, $math$, {{fig:id}} placeholders */
+  passageMarkdown: string;
+  figures?: GamFigure[];
+  estimatedMinutes: number;
+  difficulty: Difficulty;
+  source: 'seed' | 'ai+validated' | 'pool';
+}
+
+/** Authoring/bank format: a passage together with its question block. */
+export interface GamPassage extends GamPassageDoc {
+  /** 5–8 per passage, mirroring the official samples */
+  questions: GamQuestion[];
+}
+
+export type Question = FigureQuestion | EquationQuestion | LatinQuestion | GamQuestion;
 
 /* --------------------------------- Session -------------------------------- */
 
@@ -153,13 +228,18 @@ export interface Session {
   id: string;
   createdAt: number;
   mode: SessionMode;
-  subtest: SubtestType | 'full-core';
+  subtest: SubtestType | 'full-core' | 'full-dmat';
   difficulty: Difficulty | 'mixed';
   questionCount: number;
   durationMs: number;
   seed: number;
   /** latin display alphabet the set was configured with (exact retries) */
   latinAlphabet?: string;
+  /** GAM sessions carry their passage docs — review, refresh-resume and
+   *  mistake retries never need an external lookup */
+  gamPassages?: GamPassageDoc[];
+  /** GAM topic filter the set was configured with (exact retries) */
+  gamTopicAreas?: GamTopicArea[];
   questions: Question[];
   /** answers keyed by question UUID — never by array index (R5) */
   answers: Record<string, unknown>;
@@ -188,3 +268,4 @@ export interface FigureAnswer {
 export type EquationChoiceAnswer = number; // chosen option value
 export type EquationEntryAnswer = Record<string, number>;
 export type LatinAnswer = LatinLetter;
+export type GamAnswer = 0 | 1 | 2 | 3; // chosen option index

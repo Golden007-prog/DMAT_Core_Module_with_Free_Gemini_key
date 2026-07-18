@@ -1,4 +1,11 @@
-import type { Question, Session, SessionMode, SubtestType, Difficulty } from '../engine/types';
+import type {
+  GamTopicArea,
+  Question,
+  Session,
+  SessionMode,
+  SubtestType,
+  Difficulty,
+} from '../engine/types';
 import { computeScore } from './scoring';
 
 export interface SessionConfig {
@@ -10,6 +17,10 @@ export interface SessionConfig {
   durationMs?: number;
   equationAskMode?: 'choice' | 'entry';
   latinAlphabet?: 'letters' | 'digits' | 'greek' | 'shapes' | 'random';
+  /** gam only: topic filter (empty/undefined = all eight areas) */
+  gamTopicAreas?: GamTopicArea[];
+  /** gam only: passages to draw; exam mode without a count uses the blueprint */
+  gamPassageCount?: number;
 }
 
 /** Official pacing: 75 s per task (20 tasks in 25:00). */

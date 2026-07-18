@@ -27,6 +27,14 @@ export async function questionContentHash(q: Question): Promise<string> {
     });
   } else if (q.type === 'latin') {
     canonical = JSON.stringify({ t: 'latin', g: q.grid, q: q.question });
+  } else if (q.type === 'gam') {
+    // shuffle-invariant: options sorted, answer identified by its text
+    canonical = JSON.stringify({
+      t: 'gam',
+      s: q.stem.trim().toLowerCase(),
+      o: q.options.map((o) => o.trim().toLowerCase()).sort(),
+      a: q.options[q.correct].trim().toLowerCase(),
+    });
   } else {
     canonical = JSON.stringify({
       t: 'figures',

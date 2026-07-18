@@ -27,6 +27,8 @@ export function isAnswerCorrect(question: Question, answer: unknown): boolean {
     }
     case 'latin':
       return answer === question.solutionLetter;
+    case 'gam':
+      return answer === question.correct;
   }
 }
 
